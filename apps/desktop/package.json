@@ -1,6 +1,6 @@
 {
   "name": "omics-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "AI-assisted omics desktop shell — React renderer + Electron main process",
   "main": "dist-electron/main.js",
@@ -38,7 +38,8 @@
     "directories": { "output": "release" },
     "win": { "target": ["nsis"] },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
-    "mac": { "target": ["dmg"] },
-    "linux": { "target": ["AppImage"] }
+    "mac": { "target": ["dmg"], "category": "public.app-category.medical" },
+    "linux": { "target": ["AppImage"] },
+    "publish": { "provider": "github", "owner": "ohbryt", "repo": "omics" }
   }
 }

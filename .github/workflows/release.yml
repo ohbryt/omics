@@ -1,9 +1,15 @@
 name: release
 
-# Build the standalone desktop installers (.exe for Windows, .dmg for macOS) on real
-# OS runners — they have the symlink / signing-toolchain support the dev sandbox lacks,
-# and a .dmg can only be built on macOS. PyInstaller freezes the backend per-OS, then
-# electron-builder packages + publishes the installer to the GitHub release for the tag.
+# Build the standalone desktop installers on real OS runners:
+#   - Windows  -> .exe (NSIS)
+#   - macOS arm64 (Apple Silicon) -> .dmg
+#   - macOS x64 (Intel)           -> .dmg
+# PyInstaller freezes the backend per-OS/arch, electron-builder packages + publishes the
+# installer to the GitHub release for the pushed tag.
+#
+# Code signing is CONDITIONAL: builds run UNSIGNED unless the matching cert secrets exist,
+# and sign (+ notarize on macOS) automatically when they do. See docs/SIGNING.md for the
+# exact secret names.
 
 on:
   push:
@@ -21,16 +27,19 @@ jobs:
         include:
           - os: windows-latest
             ebflags: "--win nsis"
+            arch: x64
           - os: macos-latest
-            ebflags: "--mac dmg"
+            ebflags: "--mac dmg --arm64"
+            arch: arm64
+          - os: macos-13
+            ebflags: "--mac dmg --x64"
+            arch: x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -40,14 +49,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install fastapi "uvicorn[standard]" pydantic pyyaml pyinstaller
 
-      - name: Freeze backend (PyInstaller, per-OS)
+      - name: Freeze backend (PyInstaller, per-OS/arch)
         run: python -m PyInstaller apps/backend/omics-backend.spec --noconfirm --distpath apps/backend/dist --workpath apps/backend/build
 
-      - name: Sanity-check the frozen backend exists
+      - name: Verify frozen backend exists
         shell: bash
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then test -f apps/backend/dist/omics-backend/omics-backend.exe; else test -f apps/backend/dist/omics-backend/omics-backend; fi
-          echo "backend bundle present"
+          echo "backend bundle present for ${{ matrix.os }} (${{ matrix.arch }})"
 
       - name: Install desktop deps
         working-directory: apps/desktop
@@ -61,17 +70,47 @@ jobs:
         working-directory: apps/desktop
         run: npm run build
 
-      - name: Package + publish installer
+      - name: Package + publish installer (conditional signing)
         working-directory: apps/desktop
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"   # unsigned build (no Apple/Win cert in CI)
-        run: npx electron-builder ${{ matrix.ebflags }} --publish always
+          # Windows code-signing (base64 .pfx + password)
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          # macOS code-signing (base64 .p12 + password) + notarization
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          EXTRA=""
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            if [ -z "$CSC_LINK" ]; then
+              echo "No macOS signing cert -> building UNSIGNED."
+              export CSC_IDENTITY_AUTO_DISCOVERY=false
+            else
+              echo "macOS signing cert present -> signing."
+              if [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ]; then
+                echo "Apple notarization creds present -> notarizing."
+                EXTRA="--config.mac.notarize=true"
+              fi
+            fi
+          else
+            if [ -z "$WIN_CSC_LINK" ]; then
+              echo "No Windows signing cert -> building UNSIGNED."
+              export CSC_IDENTITY_AUTO_DISCOVERY=false
+            else
+              echo "Windows signing cert present -> signing."
+            fi
+          fi
+          npx electron-builder ${{ matrix.ebflags }} $EXTRA --publish always
 
       - name: Upload installer as a workflow artifact (backup)
         uses: actions/upload-artifact@v4
         with:
-          name: omics-desktop-${{ matrix.os }}
+          name: omics-desktop-${{ matrix.os }}-${{ matrix.arch }}
           path: |
             apps/desktop/release/*.exe
             apps/desktop/release/*.dmg

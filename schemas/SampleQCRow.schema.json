@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "QCDecision": {
+      "enum": [
+        "PASS",
+        "FLAG",
+        "EXCLUDE",
+        "CANDIDATE"
+      ],
+      "title": "QCDecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "sample_id": {
+      "title": "Sample Id",
+      "type": "string"
+    },
+    "metric": {
+      "title": "Metric",
+      "type": "string"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Value"
+    },
+    "threshold": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Threshold"
+    },
+    "decision": {
+      "$ref": "#/$defs/QCDecision"
+    },
+    "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+    },
+    "policy": {
+      "default": "",
+      "title": "Policy",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sample_id",
+    "metric",
+    "decision"
+  ],
+  "title": "SampleQCRow",
+  "type": "object"
+}

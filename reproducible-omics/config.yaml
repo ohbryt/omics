@@ -1,0 +1,30 @@
+# Central config — read by every step. Agents MUST read this, not hard-code values.
+allowed_organisms:
+  - "Homo sapiens"
+  - "Mus musculus"
+required_assay: "rna-seq"        # "rna-seq" or "microarray"
+min_n_total: 6                    # reject series smaller than this
+
+# statistics framing (set once)
+fdr_method: "BH"
+fdr_scope: "genome_wide"          # not within-gene-set
+fdr_threshold: 0.05
+
+# microarray-only fixed choices (ignored for rna-seq runs)
+normalization: "RMA"
+probe_collapse_rule: "jetset"     # e.g. jetset | max_mean
+annotation_pinned: true
+
+# cross-dataset combination
+pooling: "standardized_effect_random_effects"   # never vote-counting
+
+seed: 1234
+
+paths:
+  dataset_audit: "results/dataset_audit.csv"
+  quarantine: "results/quarantine.csv"
+  env_lock: "results/env.lock"
+  run_config_used: "results/run_config_used.json"
+  de_dir: "results/de"
+  meta_out: "results/meta_results.csv"
+  checksums: "data/CHECKSUMS.txt"

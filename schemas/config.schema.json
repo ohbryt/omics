@@ -1,0 +1,638 @@
+{
+  "$defs": {
+    "AICfg": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "default": "anthropic",
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "default": "claude-opus-4-8",
+          "title": "Model",
+          "type": "string"
+        },
+        "prompt_dir": {
+          "default": "prompts",
+          "title": "Prompt Dir",
+          "type": "string"
+        },
+        "redaction": {
+          "default": true,
+          "title": "Redaction",
+          "type": "boolean"
+        },
+        "send_raw_data": {
+          "default": false,
+          "title": "Send Raw Data",
+          "type": "boolean"
+        },
+        "gateway_log": {
+          "default": "logs/ai_prompts.jsonl",
+          "title": "Gateway Log",
+          "type": "string"
+        },
+        "generated_code_manifest": {
+          "default": "logs/generated_code_manifest.json",
+          "title": "Generated Code Manifest",
+          "type": "string"
+        }
+      },
+      "title": "AICfg",
+      "type": "object"
+    },
+    "AmbientRNACfg": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        }
+      },
+      "title": "AmbientRNACfg",
+      "type": "object"
+    },
+    "BulkCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "rin": {
+          "$ref": "#/$defs/ThresholdCfg"
+        },
+        "mapping_rate": {
+          "$ref": "#/$defs/ThresholdCfg"
+        },
+        "mito_fraction": {
+          "$ref": "#/$defs/ThresholdCfg"
+        },
+        "library_size": {
+          "$ref": "#/$defs/ThresholdCfg"
+        },
+        "missingness": {
+          "$ref": "#/$defs/BulkMissingnessCfg"
+        },
+        "zero_policy": {
+          "default": "distinguish_biological_zero_from_missing",
+          "title": "Zero Policy",
+          "type": "string"
+        },
+        "not_applicable_policy": {
+          "default": "do_not_convert_to_zero",
+          "title": "Not Applicable Policy",
+          "type": "string"
+        },
+        "outlier": {
+          "$ref": "#/$defs/OutlierCfg"
+        }
+      },
+      "title": "BulkCfg",
+      "type": "object"
+    },
+    "BulkMissingnessCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "max_sample_fraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Sample Fraction"
+        },
+        "max_feature_fraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Feature Fraction"
+        }
+      },
+      "title": "BulkMissingnessCfg",
+      "type": "object"
+    },
+    "DoubletCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "expected_rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Rate"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Threshold"
+        },
+        "consensus_required": {
+          "default": false,
+          "title": "Consensus Required",
+          "type": "boolean"
+        }
+      },
+      "title": "DoubletCfg",
+      "type": "object"
+    },
+    "FDRCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "default": "BH",
+          "title": "Method",
+          "type": "string"
+        },
+        "scope": {
+          "default": "genome_wide",
+          "title": "Scope",
+          "type": "string"
+        },
+        "threshold": {
+          "default": 0.05,
+          "title": "Threshold",
+          "type": "number"
+        }
+      },
+      "title": "FDRCfg",
+      "type": "object"
+    },
+    "ImputationCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "target_matrix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Matrix"
+        },
+        "downweight": {
+          "default": false,
+          "title": "Downweight",
+          "type": "boolean"
+        }
+      },
+      "title": "ImputationCfg",
+      "type": "object"
+    },
+    "IntegrationCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "require_layers_qc_passed": {
+          "default": true,
+          "title": "Require Layers Qc Passed",
+          "type": "boolean"
+        }
+      },
+      "title": "IntegrationCfg",
+      "type": "object"
+    },
+    "MissingnessCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "max_sample_fraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Sample Fraction"
+        },
+        "max_feature_fraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Feature Fraction"
+        },
+        "below_lod_policy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Below Lod Policy"
+        },
+        "zero_policy": {
+          "default": "distinguish_biological_zero_from_missing",
+          "title": "Zero Policy",
+          "type": "string"
+        },
+        "na_policy": {
+          "default": "treat_as_true_missing_unless_specified",
+          "title": "Na Policy",
+          "type": "string"
+        },
+        "not_applicable_policy": {
+          "default": "do_not_convert_to_zero",
+          "title": "Not Applicable Policy",
+          "type": "string"
+        },
+        "imputation": {
+          "$ref": "#/$defs/ImputationCfg"
+        }
+      },
+      "title": "MissingnessCfg",
+      "type": "object"
+    },
+    "OutlierCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "methods": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Methods",
+          "type": "array"
+        },
+        "automatic_exclusion": {
+          "default": false,
+          "title": "Automatic Exclusion",
+          "type": "boolean"
+        }
+      },
+      "title": "OutlierCfg",
+      "type": "object"
+    },
+    "PathsCfg": {
+      "additionalProperties": true,
+      "properties": {
+        "dataset_audit": {
+          "default": "results/dataset_audit.csv",
+          "title": "Dataset Audit",
+          "type": "string"
+        },
+        "modality_detected": {
+          "default": "results/modality_detected.csv",
+          "title": "Modality Detected",
+          "type": "string"
+        },
+        "quarantine": {
+          "default": "results/quarantine.csv",
+          "title": "Quarantine",
+          "type": "string"
+        },
+        "approvals_dir": {
+          "default": "results/approvals",
+          "title": "Approvals Dir",
+          "type": "string"
+        },
+        "run_status": {
+          "default": "results/run_status.json",
+          "title": "Run Status",
+          "type": "string"
+        },
+        "checksums": {
+          "default": "data/CHECKSUMS.txt",
+          "title": "Checksums",
+          "type": "string"
+        },
+        "run_config_used": {
+          "default": "results/run_config_used.json",
+          "title": "Run Config Used",
+          "type": "string"
+        }
+      },
+      "title": "PathsCfg",
+      "type": "object"
+    },
+    "ProjectCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "created_utc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created Utc"
+        },
+        "allowed_organisms": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Allowed Organisms",
+          "type": "array"
+        },
+        "required_assay": {
+          "title": "Required Assay",
+          "type": "string"
+        },
+        "min_n_total": {
+          "minimum": 0,
+          "title": "Min N Total",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 1234,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "allowed_organisms",
+        "required_assay",
+        "min_n_total"
+      ],
+      "title": "ProjectCfg",
+      "type": "object"
+    },
+    "QCCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "template_mode": {
+          "default": false,
+          "title": "Template Mode",
+          "type": "boolean"
+        },
+        "require_human_approval_after_dataset_audit": {
+          "default": true,
+          "title": "Require Human Approval After Dataset Audit",
+          "type": "boolean"
+        },
+        "bulk": {
+          "$ref": "#/$defs/BulkCfg"
+        },
+        "single_cell": {
+          "$ref": "#/$defs/SingleCellCfg"
+        }
+      },
+      "title": "QCCfg",
+      "type": "object"
+    },
+    "SingleCellCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "cell_qc_metrics": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cell Qc Metrics",
+          "type": "array"
+        },
+        "threshold_policy": {
+          "default": "data_driven_documented",
+          "title": "Threshold Policy",
+          "type": "string"
+        },
+        "mitochondrial_gene_definition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mitochondrial Gene Definition"
+        },
+        "mitochondrial_fraction_threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mitochondrial Fraction Threshold"
+        },
+        "doublet": {
+          "$ref": "#/$defs/DoubletCfg"
+        },
+        "ambient_rna": {
+          "$ref": "#/$defs/AmbientRNACfg"
+        },
+        "de_method": {
+          "default": "pseudobulk_by_donor",
+          "title": "De Method",
+          "type": "string"
+        }
+      },
+      "title": "SingleCellCfg",
+      "type": "object"
+    },
+    "ThresholdCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy"
+        },
+        "covariate_allowed": {
+          "default": true,
+          "title": "Covariate Allowed",
+          "type": "boolean"
+        }
+      },
+      "title": "ThresholdCfg",
+      "type": "object"
+    },
+    "VerifierCfg": {
+      "additionalProperties": false,
+      "properties": {
+        "strict": {
+          "default": true,
+          "title": "Strict",
+          "type": "boolean"
+        },
+        "fail_on_empty_audit": {
+          "default": true,
+          "title": "Fail On Empty Audit",
+          "type": "boolean"
+        },
+        "required_artifacts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Artifacts",
+          "type": "array"
+        }
+      },
+      "title": "VerifierCfg",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level config.yaml model (SPEC 5).",
+  "properties": {
+    "project": {
+      "$ref": "#/$defs/ProjectCfg"
+    },
+    "ai": {
+      "$ref": "#/$defs/AICfg"
+    },
+    "qc": {
+      "$ref": "#/$defs/QCCfg"
+    },
+    "missingness": {
+      "$ref": "#/$defs/MissingnessCfg"
+    },
+    "integration": {
+      "$ref": "#/$defs/IntegrationCfg"
+    },
+    "fdr": {
+      "$ref": "#/$defs/FDRCfg"
+    },
+    "verifier": {
+      "$ref": "#/$defs/VerifierCfg"
+    },
+    "paths": {
+      "$ref": "#/$defs/PathsCfg"
+    }
+  },
+  "required": [
+    "project"
+  ],
+  "title": "OmicsConfig",
+  "type": "object"
+}

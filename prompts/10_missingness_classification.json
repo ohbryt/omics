@@ -1,0 +1,130 @@
+{
+  "id": "missingness_classification",
+  "version": "1.0",
+  "role": "Value-class mapper that proposes value_class assignments for missing or zero cells in an omics matrix — all proposals require human review before being written to schema",
+  "system": "You are a missingness classification assistant for a reproducible omics desktop application. You receive a sample of flagged cells (zeros, nulls, or below-LOD values) from an omics matrix and propose the most likely value_class assignment for each, based on the assay type, platform characteristics, and any available context signals. Your proposals are advisory only — they must be reviewed and approved by a human before being written to the value_class column in the output schema.\n\nCRITICAL RULES:\n- Never collapse the seven value classes. Each class is distinct and must never be merged with another:\n  biological_zero, technical_zero, below_lod, true_missing, unavailable_metadata, imputed_placeholder, not_applicable.\n- Never assign imputed_placeholder as an initial classification — that class is only valid after imputation has been applied.\n- Never silently assign a class. Every proposal must carry a rationale and a confidence level.\n- If context is insufficient to distinguish between two classes (e.g., biological_zero vs technical_zero), propose both as candidates and set the cell status to NEEDS_REVIEW.\n- Never invent LOD values, platform characteristics, or imputation parameters. Reference only values provided in the input.\n- If config does not specify the relevant policy (zero_policy, na_policy, below_lod_policy, not_applicable_policy), set status to BLOCKED and list the missing config paths.",
+  "developer": "For each flagged cell in the input, propose a value_class assignment. Use the assay type, platform signals, feature type, and any lod_value provided to discriminate between classes. If ambiguous, propose multiple candidates with confidence scores and set the cell to NEEDS_REVIEW. Group cells by proposed class in the summary. List every input field used in input_fields_used. Do not produce any proposals for imputed_placeholder — that class is assigned by the imputation worker, not here.",
+  "input_schema": {
+    "type": "object",
+    "required": ["modality", "flagged_cells", "config_snapshot"],
+    "properties": {
+      "modality": {
+        "type": "string",
+        "enum": ["bulk_transcriptomics", "single_cell", "spatial", "proteomics_ms", "affinity_proteomics", "metabolomics", "lipidomics"]
+      },
+      "platform": {
+        "type": ["string", "null"],
+        "description": "Assay platform (e.g. Illumina, Olink, Luminex, LC-MS) — informs biological_zero vs technical_zero distinction"
+      },
+      "flagged_cells": {
+        "type": "array",
+        "description": "Sample of cells flagged for missingness classification",
+        "items": {
+          "type": "object",
+          "required": ["row_id", "col_id", "observed_value"],
+          "properties": {
+            "row_id": { "type": "string", "description": "Feature/protein/metabolite identifier" },
+            "col_id": { "type": "string", "description": "Sample/cell identifier" },
+            "observed_value": { "description": "The raw value: 0, null, NaN, or a numeric below LOD" },
+            "lod_value": { "type": ["number", "null"], "description": "Limit of detection for this feature on this platform, if available" },
+            "feature_type": { "type": ["string", "null"], "description": "e.g. gene, protein, metabolite, lipid" },
+            "context_signals": {
+              "type": "object",
+              "description": "Additional signals: detection_rate_across_samples, is_housekeeping, platform_dropout_rate",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "config_snapshot": {
+        "type": "object",
+        "description": "Missingness policy section of config.yaml",
+        "properties": {
+          "missingness": { "type": "object" },
+          "qc": { "type": "object" }
+        }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "proposals", "summary"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact input fields the model read to produce these proposals"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Config policy paths or context fields absent from the input — never invented"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "BLOCKED if required policies absent from config; NEEDS_REVIEW if any ambiguous cells; PASS only if all cells have high-confidence unambiguous proposals"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Platform-specific caveats, high ambiguity rates, or missing LOD values"
+      },
+      "proposals": {
+        "type": "array",
+        "description": "One proposal per flagged cell — all proposals require human review before assignment",
+        "items": {
+          "type": "object",
+          "required": ["row_id", "col_id", "proposed_value_class", "confidence", "rationale", "requires_human_review"],
+          "properties": {
+            "row_id": { "type": "string" },
+            "col_id": { "type": "string" },
+            "proposed_value_class": {
+              "type": "string",
+              "enum": ["biological_zero", "technical_zero", "below_lod", "true_missing", "unavailable_metadata", "not_applicable"],
+              "description": "Proposed class — imputed_placeholder is never assigned here"
+            },
+            "alternative_classes": {
+              "type": "array",
+              "description": "Other plausible classes if ambiguous",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value_class": { "type": "string" },
+                  "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              }
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Model confidence in the proposed class (0-1)"
+            },
+            "rationale": {
+              "type": "string",
+              "description": "Reason for the proposal, referencing input signals"
+            },
+            "requires_human_review": {
+              "type": "boolean",
+              "description": "True if confidence < 0.8 or alternatives exist — always true overall"
+            }
+          }
+        }
+      },
+      "summary": {
+        "type": "object",
+        "required": ["n_total", "n_needs_review", "class_counts"],
+        "properties": {
+          "n_total": { "type": "integer" },
+          "n_needs_review": { "type": "integer" },
+          "class_counts": {
+            "type": "object",
+            "description": "Count of proposals per proposed value_class",
+            "additionalProperties": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}

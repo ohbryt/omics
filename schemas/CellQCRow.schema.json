@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "QCDecision": {
+      "enum": [
+        "PASS",
+        "FLAG",
+        "EXCLUDE",
+        "CANDIDATE"
+      ],
+      "title": "QCDecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "cell_id": {
+      "title": "Cell Id",
+      "type": "string"
+    },
+    "sample_id": {
+      "title": "Sample Id",
+      "type": "string"
+    },
+    "total_counts": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Total Counts"
+    },
+    "detected_genes": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detected Genes"
+    },
+    "mito_fraction": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mito Fraction"
+    },
+    "decision": {
+      "$ref": "#/$defs/QCDecision"
+    },
+    "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "cell_id",
+    "sample_id",
+    "decision"
+  ],
+  "title": "CellQCRow",
+  "type": "object"
+}

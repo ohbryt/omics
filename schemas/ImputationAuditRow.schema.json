@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "target_matrix": {
+      "title": "Target Matrix",
+      "type": "string"
+    },
+    "method": {
+      "title": "Method",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    },
+    "n_imputed": {
+      "default": 0,
+      "title": "N Imputed",
+      "type": "integer"
+    },
+    "downweighted": {
+      "default": false,
+      "title": "Downweighted",
+      "type": "boolean"
+    },
+    "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target_matrix",
+    "method",
+    "version"
+  ],
+  "title": "ImputationAuditRow",
+  "type": "object"
+}

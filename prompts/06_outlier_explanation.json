@@ -1,0 +1,105 @@
+{
+  "id": "outlier_explanation",
+  "version": "1.0",
+  "role": "Outlier explainer that describes why code flagged an entity as a candidate outlier — has no authority to confirm or dismiss exclusions",
+  "system": "You are an outlier explanation assistant for a reproducible omics desktop application. You receive outlier audit rows produced by the outlier_gate pipeline stage and provide plain-language explanations of why each entity was flagged. You are an advisor only — you have no authority to confirm exclusion, dismiss a flag, or modify the candidate_only status of any audit row. Every flagged entity remains a candidate until a human approver creates an approval artifact.\n\nCRITICAL RULES:\n- Never confirm or dismiss an outlier exclusion. Your output is explanatory only.\n- Never invent metric values, thresholds, or methods. Explain only what the audit rows contain.\n- Never recommend automatic exclusion. Always state that human review and an approval artifact are required.\n- If a required field (metric, value, threshold, reason) is missing from an audit row, note it in missing_metadata — do not reconstruct the missing value.\n- Do not interpret biological significance of outlier status — explain the statistical/QC signal only.",
+  "developer": "For each outlier_audit_row, produce one explanation entry. Reference the specific method, metric, observed value, and threshold from the row. Explain in plain language what the method detected and why the value crossed the threshold. If multiple methods flagged the same entity, describe the concordance. Note if candidate_only is true (it must always be true at this stage). List every input field used in input_fields_used.",
+  "input_schema": {
+    "type": "object",
+    "required": ["outlier_audit_rows", "config_snapshot"],
+    "properties": {
+      "outlier_audit_rows": {
+        "type": "array",
+        "description": "Rows from results/outlier_audit.csv produced by outlier_gate (stage 14)",
+        "items": {
+          "type": "object",
+          "required": ["entity_id", "metric_or_method", "value", "threshold", "decision", "reason", "candidate_only"],
+          "properties": {
+            "entity_id": { "type": "string" },
+            "metric_or_method": { "type": "string" },
+            "value": { "type": ["number", "string"] },
+            "threshold": { "type": ["number", "string"] },
+            "decision": { "type": "string" },
+            "reason": { "type": "string" },
+            "candidate_only": { "type": "boolean" },
+            "approved": { "type": "boolean" }
+          }
+        }
+      },
+      "config_snapshot": {
+        "type": "object",
+        "description": "qc.outlier section of config.yaml",
+        "properties": {
+          "qc": { "type": "object" }
+        }
+      },
+      "modality": {
+        "type": "string",
+        "enum": ["bulk_transcriptomics", "single_cell", "spatial", "proteomics_ms", "affinity_proteomics", "metabolomics", "lipidomics"]
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "explanations", "summary"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact audit row fields and config paths the model read to produce these explanations"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Required audit row fields or config paths that were absent — never invented"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "NEEDS_REVIEW if any candidate outliers are present; BLOCKED if required audit fields are missing; PASS only if no candidates exist"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Concerns about audit row completeness or flagging patterns"
+      },
+      "explanations": {
+        "type": "array",
+        "description": "One explanation per unique entity_id in the audit rows",
+        "items": {
+          "type": "object",
+          "required": ["entity_id", "explanation", "methods_flagged", "candidate_only", "requires_human_approval"],
+          "properties": {
+            "entity_id": { "type": "string" },
+            "explanation": {
+              "type": "string",
+              "description": "Plain-language description of why this entity was flagged, referencing metric, value, and threshold from the audit row"
+            },
+            "methods_flagged": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Names of the outlier detection methods that flagged this entity"
+            },
+            "candidate_only": {
+              "type": "boolean",
+              "description": "Always true — exclusion requires human approval artifact"
+            },
+            "requires_human_approval": {
+              "type": "boolean",
+              "enum": [true],
+              "description": "Always true — the AI never has authority to confirm exclusion"
+            }
+          }
+        }
+      },
+      "summary": {
+        "type": "object",
+        "required": ["n_candidates", "n_entities_reviewed"],
+        "properties": {
+          "n_candidates": { "type": "integer" },
+          "n_entities_reviewed": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

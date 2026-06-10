@@ -1,0 +1,45 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "created_utc": {
+      "title": "Created Utc",
+      "type": "string"
+    },
+    "root_dir": {
+      "title": "Root Dir",
+      "type": "string"
+    },
+    "config_path": {
+      "default": "config.yaml",
+      "title": "Config Path",
+      "type": "string"
+    },
+    "config_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config Hash"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "root_dir"
+  ],
+  "title": "Project",
+  "type": "object"
+}

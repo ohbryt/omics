@@ -1,0 +1,90 @@
+# config.yaml — single source of truth (SPEC.md section 5).
+# No threshold may be hardcoded in any script. `null` for a REQUIRED threshold => BLOCKED
+# at verify time (never an invented value). Edit thresholds per dataset/tissue.
+
+project:
+  id: "demo"
+  name: "Demo omics project"
+  allowed_organisms:
+    - "Homo sapiens"
+    - "Mus musculus"
+  required_assay: "rna-seq"          # rna-seq | microarray | scrna-seq | proteomics | metabolomics | any
+  min_n_total: 6
+  seed: 1234
+
+ai:
+  provider: "anthropic"
+  model: "claude-opus-4-8"
+  prompt_dir: "prompts"
+  redaction: true
+  send_raw_data: false               # never send raw seq/matrices/patient data unless true
+  gateway_log: "logs/ai_prompts.jsonl"
+  generated_code_manifest: "logs/generated_code_manifest.json"
+
+qc:
+  template_mode: false               # true allows zero-row audits for dry template runs
+  require_human_approval_after_dataset_audit: true
+  bulk:
+    rin: { policy: "exclude_or_covariate", minimum: null, covariate_allowed: true }
+    mapping_rate: { minimum: null }
+    mito_fraction: { minimum: null }
+    library_size: { minimum: null }
+    missingness: { max_sample_fraction: null, max_feature_fraction: null }
+    zero_policy: "distinguish_biological_zero_from_missing"
+    not_applicable_policy: "do_not_convert_to_zero"
+    outlier:
+      methods: ["mad", "pca_distance"]
+      automatic_exclusion: false
+  single_cell:
+    cell_qc_metrics: ["total_counts", "detected_genes", "mitochondrial_fraction"]
+    threshold_policy: "data_driven_documented"
+    mitochondrial_gene_definition: null
+    mitochondrial_fraction_threshold: null
+    doublet:
+      tool: null
+      version: null
+      expected_rate: null
+      threshold: null
+      consensus_required: false
+    ambient_rna:
+      method: null
+    de_method: "pseudobulk_by_donor"
+
+missingness:
+  max_sample_fraction: null
+  max_feature_fraction: null
+  below_lod_policy: null
+  zero_policy: "distinguish_biological_zero_from_missing"
+  na_policy: "treat_as_true_missing_unless_specified"
+  not_applicable_policy: "do_not_convert_to_zero"
+  imputation:
+    enabled: false
+    method: null
+    version: null
+    target_matrix: null
+    downweight: false
+
+integration:
+  method: null                       # combat | combat_seq | harmony | seurat | mofa2
+  require_layers_qc_passed: true
+
+fdr:
+  method: "BH"
+  scope: "genome_wide"               # not within-gene-set
+  threshold: 0.05
+
+verifier:
+  strict: true
+  fail_on_empty_audit: true
+  required_artifacts:
+    - "results/modality_detected.csv"
+    - "results/dataset_audit.csv"
+
+paths:
+  dataset_audit: "results/dataset_audit.csv"
+  modality_detected: "results/modality_detected.csv"
+  quarantine: "results/quarantine.csv"
+  approvals_dir: "results/approvals"
+  run_status: "results/run_status.json"
+  checksums: "data/CHECKSUMS.txt"
+  run_config_used: "results/run_config_used.json"

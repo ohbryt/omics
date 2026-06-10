@@ -1,0 +1,60 @@
+{
+  "_comment": "Small public-accession fixtures, one per repository type, with injected structured metadata so CI is fully offline + deterministic. Mix of INCLUDE and REJECT cases exercises the dataset-audit gates (SPEC 4, 5).",
+  "GSE112057": {
+    "repository": "GEO",
+    "organism": "Homo sapiens",
+    "library_strategy": "rna-seq",
+    "gdstype": "Expression profiling by high throughput sequencing",
+    "platform_GPL": "GPL11154",
+    "tissue": "blood",
+    "n_total": "12",
+    "n_case": "6",
+    "n_control": "6",
+    "_expect_decision": "INCLUDE"
+  },
+  "SRP149367": {
+    "repository": "SRA",
+    "organism": "Mus musculus",
+    "library_strategy": "rna-seq",
+    "platform": "Illumina NovaSeq 6000",
+    "tissue": "adipose",
+    "n_total": "8",
+    "_expect_decision": "INCLUDE"
+  },
+  "GSE10072": {
+    "repository": "GEO",
+    "organism": "Homo sapiens",
+    "library_strategy": "",
+    "gdstype": "Expression profiling by array",
+    "platform_GPL": "GPL96",
+    "tissue": "lung",
+    "n_total": "107",
+    "_expect_decision": "REJECT",
+    "_reject_reason": "microarray when required_assay=rna-seq"
+  },
+  "GSE99999": {
+    "repository": "GEO",
+    "organism": "Canis lupus familiaris",
+    "library_strategy": "rna-seq",
+    "gdstype": "Expression profiling by high throughput sequencing",
+    "platform_GPL": "GPL1234",
+    "tissue": "liver",
+    "n_total": "10",
+    "_expect_decision": "REJECT",
+    "_reject_reason": "organism not in allowed_organisms"
+  },
+  "PXD000001": {
+    "repository": "PRIDE/ProteomeXchange",
+    "organism": "Homo sapiens",
+    "platform": "LTQ Orbitrap",
+    "_expect_decision": "REJECT",
+    "_reject_reason": "proteomics when required_assay=rna-seq; also no n_total"
+  },
+  "MTBLS1": {
+    "repository": "MetaboLights",
+    "organism": "Homo sapiens",
+    "platform": "LC-MS",
+    "_expect_decision": "REJECT",
+    "_reject_reason": "metabolomics when required_assay=rna-seq; also no n_total"
+  }
+}

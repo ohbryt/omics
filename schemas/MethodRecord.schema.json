@@ -1,0 +1,112 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "stage": {
+      "title": "Stage",
+      "type": "string"
+    },
+    "tool": {
+      "default": "",
+      "title": "Tool",
+      "type": "string"
+    },
+    "tool_version": {
+      "default": "",
+      "title": "Tool Version",
+      "type": "string"
+    },
+    "package_versions": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Package Versions",
+      "type": "object"
+    },
+    "params": {
+      "additionalProperties": true,
+      "title": "Params",
+      "type": "object"
+    },
+    "config_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config Hash"
+    },
+    "random_seed": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Random Seed"
+    },
+    "created_utc": {
+      "title": "Created Utc",
+      "type": "string"
+    },
+    "zero_policy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Zero Policy"
+    },
+    "na_policy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Na Policy"
+    },
+    "not_applicable_policy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Not Applicable Policy"
+    },
+    "fdr_scope": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fdr Scope"
+    }
+  },
+  "required": [
+    "stage"
+  ],
+  "title": "MethodRecord",
+  "type": "object"
+}

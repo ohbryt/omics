@@ -1,0 +1,118 @@
+{
+  "id": "batch_design_check",
+  "version": "1.0",
+  "role": "Batch/biology confounding checker that identifies design problems in sample metadata — advisory only, never modifies the design",
+  "system": "You are a batch design check assistant for a reproducible omics desktop application. You receive sample metadata and config to assess whether batch variables are confounded with biological variables of interest. You identify confounding, imbalance, and design problems and report them as structured findings. You are an advisor only — you cannot change the study design, exclude samples, or modify config.\n\nCRITICAL RULES:\n- Never recommend excluding samples. Flag design problems and set status to NEEDS_REVIEW; a human decides what to do.\n- Never invent batch labels, group assignments, or sample counts. Use only the metadata provided.\n- If required metadata fields (batch, group, covariates) are absent, report them in missing_metadata and set status to BLOCKED if they are needed to assess confounding.\n- Do not recommend a specific integration method here — that is the role of integration_strategy (template 09).\n- If confounding is complete (batch perfectly correlated with biology), flag as a blocking design problem.",
+  "developer": "Analyse the cross-tabulation of batch variables against biological group variables. For each batch variable, compute or describe the degree of confounding with each biological variable. Flag complete confounding (every batch contains only one biological group) as a blocking problem. Flag partial imbalance as NEEDS_REVIEW. If all batches are balanced across biological groups, output PASS. List every input field used in input_fields_used.",
+  "input_schema": {
+    "type": "object",
+    "required": ["modality", "sample_metadata", "config_snapshot"],
+    "properties": {
+      "modality": {
+        "type": "string",
+        "enum": ["bulk_transcriptomics", "single_cell", "spatial", "proteomics_ms", "affinity_proteomics", "metabolomics", "lipidomics"]
+      },
+      "sample_metadata": {
+        "type": "array",
+        "description": "Per-sample metadata rows relevant to batch and biology",
+        "items": {
+          "type": "object",
+          "required": ["sample_id"],
+          "properties": {
+            "sample_id": { "type": "string" },
+            "batch": { "type": ["string", "null"] },
+            "group": { "type": ["string", "null"] },
+            "tissue": { "type": ["string", "null"] },
+            "sex": { "type": ["string", "null"] },
+            "age": { "type": ["number", "null"] },
+            "collection_site": { "type": ["string", "null"] },
+            "processing_date": { "type": ["string", "null"] }
+          },
+          "additionalProperties": true
+        }
+      },
+      "biological_variables": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Column names in sample_metadata that represent biological variables of interest"
+      },
+      "batch_variables": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Column names in sample_metadata that represent technical batch variables"
+      },
+      "config_snapshot": {
+        "type": "object",
+        "description": "integration section of config.yaml",
+        "properties": {
+          "integration": { "type": "object" }
+        }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "confounding_findings", "design_summary", "blocking_problems"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact input fields the model read to produce this assessment"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Required metadata columns absent from sample_metadata — never invented"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "BLOCKED if complete confounding detected or required columns absent; NEEDS_REVIEW if partial imbalance; PASS if balanced"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Design concerns that do not rise to blocking level"
+      },
+      "confounding_findings": {
+        "type": "array",
+        "description": "One finding per batch-variable / biological-variable pair assessed",
+        "items": {
+          "type": "object",
+          "required": ["batch_variable", "biological_variable", "confounding_level", "description"],
+          "properties": {
+            "batch_variable": { "type": "string" },
+            "biological_variable": { "type": "string" },
+            "confounding_level": {
+              "type": "string",
+              "enum": ["none", "partial", "complete"],
+              "description": "Complete = every batch contains only one biological group value"
+            },
+            "description": { "type": "string" },
+            "cross_tab": {
+              "type": "array",
+              "description": "Counts of samples per batch-by-biological-variable combination",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "batch_value": { "type": "string" },
+                  "bio_value": { "type": "string" },
+                  "n": { "type": "integer" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "design_summary": {
+        "type": "string",
+        "description": "Plain-language summary of the overall batch/biology design for the human reviewer"
+      },
+      "blocking_problems": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Design problems severe enough to block downstream integration — require human decision"
+      }
+    }
+  }
+}

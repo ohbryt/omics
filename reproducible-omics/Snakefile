@@ -1,0 +1,78 @@
+# One-command reproducible pipeline (single self-contained folder).
+#   snakemake -c4 --use-conda
+# Order: detect modality -> code-gated select -> record env -> DE/processing -> meta -> checksums -> verify.
+# `verify` is terminal: the run is "done" only if it exits 0 (STATUS=PASS).
+
+import csv
+configfile: "config.yaml"
+
+def accessions():
+    try:
+        return [l.strip() for l in open("config/accessions.txt") if l.strip() and not l.startswith("#")]
+    except FileNotFoundError:
+        return []
+
+def included():
+    p = config["paths"]["dataset_audit"]
+    try:
+        with open(p, newline="") as f:
+            return [r["accession"] for r in csv.DictReader(f) if r["decision"].upper() == "INCLUDE"]
+    except FileNotFoundError:
+        return []
+
+rule all:
+    input: "results/.verify_passed"
+
+# 0. detect modality (with repository-API confirmation) BEFORE anything else
+rule detect:
+    output: "results/modality_detected.csv"
+    conda: "environment.yml"
+    shell: "python detect_modality.py " + " ".join(accessions())
+
+# 1. code-gated dataset selection (organism + modality gates)
+rule select:
+    input: "results/modality_detected.csv"
+    output: audit=config["paths"]["dataset_audit"], quarantine=config["paths"]["quarantine"]
+    conda: "environment.yml"
+    shell: "python dataset_selection_gate.py && test -f {output.audit}"
+
+# 2. record the exact environment + config used
+rule record_env:
+    output: env=config["paths"]["env_lock"], used=config["paths"]["run_config_used"]
+    conda: "environment.yml"
+    shell: "conda list --explicit > {output.env} && python scripts/record_run_config.py"
+
+# 3. processing per dataset -> writes results/de/<acc>_de.csv + a method record the verifier checks
+#    (transcriptomics uses the R script; other modalities write results/method/<acc>.json from their own tool)
+rule process:
+    input: audit=config["paths"]["dataset_audit"]
+    output: "results/de/{acc}_de.csv"
+    conda: "environment.yml"
+    shell: "Rscript scripts/02_differential_expression.R {wildcards.acc}"
+
+# 4. cross-dataset random-effects meta of standardized effects (never vote-counting)
+rule meta:
+    input: lambda wc: expand("results/de/{acc}_de.csv", acc=included())
+    output: config["paths"]["meta_out"]
+    conda: "environment.yml"
+    shell: "Rscript scripts/03_meta_analyze.R"
+
+# 5. checksums
+rule checksums:
+    input: config["paths"]["meta_out"]
+    output: config["paths"]["checksums"]
+    conda: "environment.yml"
+    shell: "python scripts/00_checksums.py write"
+
+# 6. verifier (terminal gate: universal + per-modality assertions)
+rule verify:
+    input:
+        modality="results/modality_detected.csv",
+        audit=config["paths"]["dataset_audit"],
+        env=config["paths"]["env_lock"],
+        used=config["paths"]["run_config_used"],
+        meta=config["paths"]["meta_out"],
+        cks=config["paths"]["checksums"]
+    output: touch("results/.verify_passed")
+    conda: "environment.yml"
+    shell: "python scripts/verify.py"

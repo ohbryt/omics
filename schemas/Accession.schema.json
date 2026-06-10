@@ -1,0 +1,40 @@
+{
+  "$defs": {
+    "Repository": {
+      "enum": [
+        "GEO",
+        "SRA",
+        "ArrayExpress/BioStudies",
+        "PRIDE/ProteomeXchange",
+        "MassIVE",
+        "jPOST",
+        "MetaboLights",
+        "Metabolomics Workbench",
+        "unknown"
+      ],
+      "title": "Repository",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "repository": {
+      "$ref": "#/$defs/Repository",
+      "default": "unknown"
+    },
+    "namespace_valid": {
+      "default": false,
+      "title": "Namespace Valid",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "Accession",
+  "type": "object"
+}

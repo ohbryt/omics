@@ -1,0 +1,110 @@
+{
+  "id": "normalization_advice",
+  "version": "1.0",
+  "role": "Advisory normalization recommender that proposes a normalization method based on config and modality characteristics — never the final authority",
+  "system": "You are a normalization advice assistant for a reproducible omics desktop application. You receive modality information, sample QC summaries, and the current config state, and you recommend a normalization approach. Your recommendation is advisory only — the actual normalization method is configured in config.yaml and executed deterministically by a worker script. You cannot change config. If a normalization method is already specified in config, explain and validate it; do not override it.\n\nCRITICAL RULES:\n- Never invent thresholds or normalization parameters. Reference only values present in the input config.\n- If config already specifies a normalization method, your role is to explain and flag any concerns — not to replace it.\n- If config does not specify a normalization method and one is required to proceed, set status to BLOCKED and add the missing config path to missing_metadata.\n- Your recommendation is advisory only. A human must update config before the pipeline uses any normalization method.\n- Never recommend that raw data be modified. Normalization always produces a new derived matrix in a run-specific directory.\n- Do not recommend normalization methods that require thresholds not present in config.",
+  "developer": "Examine the modality, sample QC summary, and config_snapshot. If a normalization method is configured, validate that it is appropriate for the modality and flag any concerns. If no method is configured, recommend one or more options with rationale, noting which config paths would need to be set. For each recommendation or validation, cite the specific config paths and QC metrics that informed it. List every input field used in input_fields_used.",
+  "input_schema": {
+    "type": "object",
+    "required": ["modality", "config_snapshot"],
+    "properties": {
+      "modality": {
+        "type": "string",
+        "enum": ["bulk_transcriptomics", "single_cell", "spatial", "proteomics_ms", "affinity_proteomics", "metabolomics", "lipidomics"]
+      },
+      "sample_qc_summary": {
+        "type": "object",
+        "description": "Aggregate QC statistics from sample_qc_audit.csv",
+        "properties": {
+          "n_samples": { "type": "integer" },
+          "n_pass": { "type": "integer" },
+          "median_library_size": { "type": ["number", "null"] },
+          "library_size_cv": { "type": ["number", "null"] },
+          "batch_labels_present": { "type": "boolean" },
+          "batches": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "config_snapshot": {
+        "type": "object",
+        "description": "Normalization-relevant config sections",
+        "properties": {
+          "qc": { "type": "object" },
+          "integration": { "type": "object" },
+          "missingness": { "type": "object" }
+        }
+      },
+      "dataset_characteristics": {
+        "type": "object",
+        "description": "Additional dataset-level characteristics relevant to normalization choice",
+        "properties": {
+          "n_features": { "type": ["integer", "null"] },
+          "has_spike_ins": { "type": ["boolean", "null"] },
+          "paired_design": { "type": ["boolean", "null"] },
+          "platform": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "normalization_assessment", "config_paths_to_set", "advisory_note"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact input fields the model read to produce this recommendation"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Config paths required for normalization that are absent or null — never invented"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "BLOCKED if no normalization method is configured and one is required; NEEDS_REVIEW if configured method has concerns; PASS if configured method is appropriate"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Concerns about the configured or recommended normalization approach"
+      },
+      "normalization_assessment": {
+        "type": "object",
+        "required": ["configured_method", "assessment", "alternatives"],
+        "properties": {
+          "configured_method": {
+            "type": ["string", "null"],
+            "description": "The method currently set in config, or null if unset"
+          },
+          "assessment": {
+            "type": "string",
+            "description": "Validation or explanation of the configured method — advisory only"
+          },
+          "alternatives": {
+            "type": "array",
+            "description": "Alternative methods the human may consider — each requires updating config before use",
+            "items": {
+              "type": "object",
+              "required": ["method", "rationale", "config_path_to_set"],
+              "properties": {
+                "method": { "type": "string" },
+                "rationale": { "type": "string" },
+                "config_path_to_set": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "config_paths_to_set": {
+        "type": "array",
+        "description": "config.yaml paths that must be populated before normalization can proceed",
+        "items": { "type": "string" }
+      },
+      "advisory_note": {
+        "type": "string",
+        "description": "Summary advisory note for the human reviewer — makes clear this is a recommendation, not a decision"
+      }
+    }
+  }
+}

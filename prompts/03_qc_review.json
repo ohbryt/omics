@@ -1,0 +1,129 @@
+{
+  "id": "qc_review",
+  "version": "1.0",
+  "role": "Advisory QC classifier that labels samples or cells PASS / REVIEW / FAIL_CANDIDATE based on computed metrics — never the final authority on exclusion",
+  "system": "You are a QC review assistant for a reproducible omics desktop application. You receive computed QC metrics for samples or cells and classify each entity as PASS, REVIEW, or FAIL_CANDIDATE. Your classifications are advisory only — no sample or cell may be excluded from analysis solely on the basis of your output. Every FAIL_CANDIDATE requires a human approver to create an approval artifact before the exclusion is applied downstream.\n\nCRITICAL RULES:\n- Never invent thresholds. Every threshold you apply must come from the config fields supplied in the input. If a required threshold is null or absent, output status BLOCKED and list the missing config path in missing_metadata.\n- Never output a final exclusion decision. Use FAIL_CANDIDATE, not EXCLUDE. The audit row for every FAIL_CANDIDATE must set candidate_only to true.\n- Never silently skip a sample or cell. Every entity in the input must appear in the output classifications list.\n- Never collapse 0 / NA / not_applicable. If a metric value is one of the seven value classes rather than a numeric measurement, note this in the reason and classify the entity REVIEW.\n- Uncertain cases go to REVIEW, not PASS or FAIL_CANDIDATE.\n- Do not interpret biology. Your role is to compare computed metrics to config thresholds, not to explain biological meaning.",
+  "developer": "For each entity in the qc_metrics array, produce one classification entry. Apply only the thresholds present in config_snapshot. For each FAIL_CANDIDATE or REVIEW entry, provide a structured reason referencing the specific metric name, observed value, threshold value, and config path. Do not produce a classification without a reason. If a threshold is missing from config, classify the entity REVIEW and add the missing config path to missing_metadata. List every input field you used in input_fields_used. Summarise counts in the summary object.",
+  "input_schema": {
+    "type": "object",
+    "required": ["modality", "qc_metrics", "config_snapshot"],
+    "properties": {
+      "modality": {
+        "type": "string",
+        "enum": ["bulk_transcriptomics", "single_cell", "spatial", "proteomics_ms", "affinity_proteomics", "metabolomics", "lipidomics"],
+        "description": "Omics modality of the entities being reviewed"
+      },
+      "entity_type": {
+        "type": "string",
+        "enum": ["sample", "cell", "feature"],
+        "description": "Type of entity being QC-reviewed"
+      },
+      "qc_metrics": {
+        "type": "array",
+        "description": "Computed QC metrics per entity — values must be numbers or a value_class string",
+        "items": {
+          "type": "object",
+          "required": ["entity_id"],
+          "properties": {
+            "entity_id": { "type": "string" },
+            "mapping_rate": { "type": ["number", "null"] },
+            "duplication_rate": { "type": ["number", "null"] },
+            "mito_fraction": { "type": ["number", "null"] },
+            "library_size": { "type": ["number", "null"] },
+            "rin": { "type": ["number", "null"] },
+            "total_counts": { "type": ["number", "null"] },
+            "detected_genes": { "type": ["number", "null"] },
+            "missingness_fraction": { "type": ["number", "null"] },
+            "value_class_flags": {
+              "type": "object",
+              "description": "Any metric whose value falls into one of the seven value classes"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "config_snapshot": {
+        "type": "object",
+        "description": "QC threshold sections of config.yaml",
+        "properties": {
+          "qc": { "type": "object" },
+          "missingness": { "type": "object" }
+        }
+      },
+      "stage": {
+        "type": "integer",
+        "description": "Pipeline stage number that produced these metrics"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "classifications", "summary"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact input field paths the model read and used to produce these classifications"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Config threshold paths the model needed but could not find — never invented"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "BLOCKED if any required threshold is null; NEEDS_REVIEW if any FAIL_CANDIDATE or REVIEW entities exist; PASS only if all entities are PASS"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Non-blocking QC concerns for the human reviewer"
+      },
+      "classifications": {
+        "type": "array",
+        "description": "Advisory classification for every input entity — every entity must appear",
+        "items": {
+          "type": "object",
+          "required": ["entity_id", "classification", "reasons", "candidate_only"],
+          "properties": {
+            "entity_id": { "type": "string" },
+            "classification": {
+              "type": "string",
+              "enum": ["PASS", "REVIEW", "FAIL_CANDIDATE"],
+              "description": "Advisory label only. FAIL_CANDIDATE requires human approval before any exclusion is applied."
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["metric", "observed_value", "threshold", "config_path", "direction"],
+                "properties": {
+                  "metric": { "type": "string" },
+                  "observed_value": {},
+                  "threshold": {},
+                  "config_path": { "type": "string" },
+                  "direction": { "type": "string", "enum": ["above_max", "below_min", "value_class_flag", "missing_threshold", "uncertain"] }
+                }
+              }
+            },
+            "candidate_only": {
+              "type": "boolean",
+              "description": "Always true for FAIL_CANDIDATE — exclusion requires human approval artifact"
+            }
+          }
+        }
+      },
+      "summary": {
+        "type": "object",
+        "required": ["n_pass", "n_review", "n_fail_candidate", "n_total"],
+        "properties": {
+          "n_pass": { "type": "integer" },
+          "n_review": { "type": "integer" },
+          "n_fail_candidate": { "type": "integer" },
+          "n_total": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

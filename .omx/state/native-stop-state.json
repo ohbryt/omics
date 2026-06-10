@@ -1,0 +1,44 @@
+{
+  "sessions": {
+    "019eaf3b-a5ce-7431-819e-5e8a55685b65": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"suggestions\":[{\"title\":\"turn the silk longevity handoff into a metagenome-ready audit pipeline\",\"description\":\"a june 9 thread shows your corrected address is being added so the shotgun/metagenome data can finally be shared, but this repo still has empty audit outputs and no metagenome path. codex can wire the ingest manifest, modality routing, and stop-gated audit now so the project is ready as soon as the folder opens.\",\"prompt\":\"use the june 8-9 silk longevity email context as the target use case and update this repo so it is ready for the incoming shotgun/metagenome handoff. add deterministic metagenome-capable input manifests, modality detection/audit handling, quarantine rules, and any config or pipeline changes needed to stop after a reviewable audit artifact rather than analysis.\",\"appid\":\"mcp__codex_apps__gmail\"},{\"title\":\"build the kegg and prism exports the vendor said they cannot provide\",\"description\":\"the june 8 phone-note email says the mrna-seq vendor has nothing beyond the current report, suggested manual kegg mapper use, and said heatmaps need count-data exports. codex can turn that gap into a reproducible post-processing step here instead of leaving it as a manual follow-up.\",\"prompt\":\"add a deterministic post-report workflow to this repo for vendor-delivered mrna-seq outputs: ingest count/result tables, produce kegg/reactome-ready pathway tables, and emit prism-friendly heatmap matrices/files. keep it compliant with this repo's audit and verification rules, and scaffold the exact inputs the silk longevity handoff will need.\",\"appid\":\"mcp__codex_apps__gmail\"}]}",
+        "first_seen_at": "2026-06-10T02:01:34.249Z",
+        "last_seen_at": "2026-06-10T02:01:34.249Z",
+        "repeat_count": 1,
+        "last_turn_id": "019eaf3b-a96f-7231-a413-22f731073436",
+        "last_thread_id": null
+      }
+    },
+    "019eaf3c-d2da-70d3-a9db-634739c6238b": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|?�리 ?�일??만들?�습?�다: [qc_requirements_and_skill_review.md](/c:/users/ohbry/projects/adipose_cvd/omics/qc_requirements_and_skill_review.md) ?�용?�는 지금까지 리뷰??skill/pipeline 문제?? gtex/bulk/scrna?�서 ?�요??qc ?�구?�항, 추�??�야 ??audit ?�일?? verifier 보강 ??��, `config.yaml` ?�장?? 근거 source ?�선?�위?� 참고 링크�???번에 ?�리?�습?�다.",
+        "first_seen_at": "2026-06-10T08:23:14.266Z",
+        "last_seen_at": "2026-06-10T08:23:14.266Z",
+        "repeat_count": 1,
+        "last_turn_id": "019eb09e-69e7-77c3-84a4-c5d61efe55eb",
+        "last_thread_id": null
+      }
+    },
+    "019eb0aa-c811-78e1-8527-c9b85ff0816c": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"suggestions\":[{\"title\":\"add metagenome support for the silklongevity kiom data request\",\"description\":\"a june 9 kiom thread says metagenome analysis is now in scope, while this repo?�s modality router still stops at transcriptomics, proteomics, metabolomics, and lipidomics. codex can add a metagenome path before that data lands so you do not improvise gates later.\",\"prompt\":\"extend this local `reproducible-omics` project to support metagenome and shotgun microbiome studies for the recent silklongevity/kiom request. reuse the existing modality router and verifier style, add structured modality detection and deterministic dataset gates for metagenome data, create a new modality rules file, and keep the same stop-after-audit approval contract.\",\"appid\":\"mcp__codex_apps__gmail\"},{\"title\":\"package a reviewer-ready reproducibility bundle for the dmj multi-omics revision\",\"description\":\"diabetes & metabolism journal confirmed your revised multi-omics submission on june 8. this repo already has the right audit, checksum, and verifier ideas; codex can turn them into a submission-grade reproducibility bundle before reviewer questions create a scramble.\",\"prompt\":\"turn this local omics project into a manuscript-facing reproducibility bundle for the dmj revision confirmed on june 8. create a compact artifact set and templates that map claims to files, config, checksums, audit outputs, and verifier status so it can be reused for reviewer responses or supplementary methods.\",\"appid\":\"mcp__codex_apps__gmail\"}]}",
+        "first_seen_at": "2026-06-10T08:38:48.386Z",
+        "last_seen_at": "2026-06-10T08:38:48.386Z",
+        "repeat_count": 1,
+        "last_turn_id": "019eb0aa-c95f-7893-9502-e44e61d11b5f",
+        "last_thread_id": null
+      }
+    },
+    "019eb0b8-c4a6-77c2-9e3e-07a1dcd17fce": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"suggestions\":[{\"title\":\"set up a gated intake for the three metagenome_?��??�선?�님 shares\",\"description\":\"jungtae kim shared three new `metagenome_?��??�선?�님_*` items today, and you already asked for sample-group details. codex can turn that handoff into a deterministic intake package in this repo before anyone starts analyzing by guesswork.\",\"prompt\":\"use this repo to prepare intake for the newly shared kiom/silk longevity metagenome + mrna-seq data. start from the three `metagenome_?��??�선?�님_*` shares and my sample-group follow-up email, then scaffold the config/accession placeholders, dataset audit template, and an approval checkpoint so a student can start without guessing.\",\"appid\":\"mcp__codex_apps__gmail\"},{\"title\":\"make the root pipeline safe for the incoming silk longevity omics handoff\",\"description\":\"your june 9 kiom thread says the vendor only delivered report-level mrna-seq and basic metagenome outputs, while today?�s local review notes the root pipeline is older than `reproducible-omics/`. codex can close that gap now so the next real run hits the right guardrails.\",\"prompt\":\"compare the root pipeline with `reproducible-omics/` and make the root one the safe canonical path for the incoming silk longevity data. preserve the current reproducibility rules, add modality detection and a real stop-after-dataset-audit gate, and tell me exactly what still needs human sign-off before any de step.\",\"appid\":\"mcp__codex_apps__gmail\"},{\"title\":\"turn today?�s lc-ms nad and serotonin draft into a metabolomics workflow guardrail\",\"description\":\"you revived the old lc-ms thread this morning and the draft carries the exact nad/serotonin papers and protocol decks that a future metabolomics workflow would need. codex can mine those attachments and convert them into repo-native rules instead of another ad hoc email loop.\",\"prompt\":\"use the lc-ms draft i resurfaced today plus its attached nad/serotonin papers to add a metabolomics modality contract to this repo. i want a deterministic intake checklist, config schema, and verifier skeleton so future lc-ms analyses are handled like the transcriptomics pipeline, not through scattered email threads.\",\"appid\":\"mcp__codex_apps__gmail\"}]}",
+        "first_seen_at": "2026-06-10T08:55:37.694Z",
+        "last_seen_at": "2026-06-10T08:55:37.694Z",
+        "repeat_count": 1,
+        "last_turn_id": "019eb0b8-c6b0-7533-b629-ad7448fa7b55",
+        "last_thread_id": null
+      }
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "QCDecision": {
+      "enum": [
+        "PASS",
+        "FLAG",
+        "EXCLUDE",
+        "CANDIDATE"
+      ],
+      "title": "QCDecision",
+      "type": "string"
+    },
+    "ValueClass": {
+      "description": "Missing-value taxonomy (SPEC 3). Never collapse these.",
+      "enum": [
+        "biological_zero",
+        "technical_zero",
+        "below_lod",
+        "true_missing",
+        "unavailable_metadata",
+        "imputed_placeholder",
+        "not_applicable"
+      ],
+      "title": "ValueClass",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "feature_id": {
+      "title": "Feature Id",
+      "type": "string"
+    },
+    "metric": {
+      "title": "Metric",
+      "type": "string"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Value"
+    },
+    "threshold": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Threshold"
+    },
+    "value_class": {
+      "$ref": "#/$defs/ValueClass"
+    },
+    "decision": {
+      "$ref": "#/$defs/QCDecision"
+    },
+    "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "feature_id",
+    "metric",
+    "value_class",
+    "decision"
+  ],
+  "title": "FeatureQCRow",
+  "type": "object"
+}

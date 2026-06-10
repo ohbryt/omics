@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Node / desktop
+node_modules/
+dist/
+dist-electron/
+*.log
+
+# Snakemake
+.snakemake/
+
+# Workspace runtime artifacts (regenerated; not committed)
+logs/
+results/run_status.json
+results/metadata/
+results/de/
+results/integration/
+results/qc_plots/
+
+# OS
+.DS_Store
+Thumbs.db

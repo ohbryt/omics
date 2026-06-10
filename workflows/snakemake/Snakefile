@@ -1,0 +1,520 @@
+# =============================================================================
+# Snakemake workflow — AI-Assisted Omics Pipeline (SPEC.md §7, 20 stages)
+#
+# Run from repo root:
+#   snakemake -s workflows/snakemake/Snakefile --cores <N>
+#
+# Interactive mode: the pipeline stops at two human-approval gates:
+#   1. results/approvals/dataset_audit_approved.json  (stage 3)
+#      — blocks fetch_raw and ALL QC stages (stages 4-15)
+#   2. results/approvals/qc_approved.json             (stage 16)
+#      — blocks differential_expression and integration (stages 17-18)
+#
+# Autonomous mode: pre-create approval artifacts externally (e.g., via the
+# FastAPI backend /projects/{id}/approvals endpoint) before invoking Snakemake.
+#
+# Approval gating is enforced via DAG input dependencies — Snakemake will
+# refuse to run any downstream rule until the approval artifact exists.
+# final_verifier (stage 20) writes results/run_status.json and exits non-zero
+# on STATUS=BLOCKED, failing the workflow loudly.
+# =============================================================================
+
+configfile: "config.yaml"
+
+# ---------------------------------------------------------------------------
+# Terminal target
+# ---------------------------------------------------------------------------
+rule all:
+    input:
+        "results/run_status.json"
+
+
+# ---------------------------------------------------------------------------
+# Stage 1 — detect_modality
+# ---------------------------------------------------------------------------
+rule detect_modality:
+    output:
+        audit   = "results/modality_detected.csv",
+        method  = "results/detect_modality_method.json",
+    log:
+        "logs/detect_modality.log"
+    shell:
+        """
+        python workers/python/detect_modality.py \
+            --config config.yaml \
+            --out-audit {output.audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 — dataset_selection_gate
+# ---------------------------------------------------------------------------
+rule dataset_selection_gate:
+    input:
+        modality = "results/modality_detected.csv",
+    output:
+        audit   = "results/dataset_audit.csv",
+        method  = "results/dataset_selection_method.json",
+    log:
+        "logs/dataset_selection_gate.log"
+    shell:
+        """
+        python workers/python/dataset_selection_gate.py \
+            --config config.yaml \
+            --modality {input.modality} \
+            --out-audit {output.audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 3 — dataset_audit_approval  (produces the gate artifact)
+# ---------------------------------------------------------------------------
+rule dataset_audit_approval:
+    input:
+        audit   = "results/dataset_audit.csv",
+        method  = "results/dataset_selection_method.json",
+    output:
+        approval = "results/approvals/dataset_audit_approved.json",
+    log:
+        "logs/dataset_audit_approval.log"
+    shell:
+        """
+        python workers/python/dataset_audit_approval.py \
+            --config config.yaml \
+            --audit {input.audit} \
+            --out-approval {output.approval} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 4 — fetch_raw   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule fetch_raw:
+    input:
+        approval = "results/approvals/dataset_audit_approved.json",
+        audit    = "results/dataset_audit.csv",
+    output:
+        checksums = "data/CHECKSUMS.txt",
+    log:
+        "logs/fetch_raw.log"
+    shell:
+        """
+        python workers/python/fetch_raw.py \
+            --config config.yaml \
+            --audit {input.audit} \
+            --approval {input.approval} \
+            --out-checksums {output.checksums} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 5 — sample_qc_gate   [gated by stage 3]
+# Note: method output is results/qc_method.json (SPEC §7 exact name)
+# ---------------------------------------------------------------------------
+rule sample_qc_gate:
+    input:
+        approval  = "results/approvals/dataset_audit_approved.json",
+        checksums = "data/CHECKSUMS.txt",
+    output:
+        audit   = "results/sample_qc_audit.csv",
+        method  = "results/qc_method.json",
+    log:
+        "logs/sample_qc_gate.log"
+    shell:
+        """
+        python workers/python/sample_qc_gate.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-audit {output.audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 6 — feature_qc_gate   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule feature_qc_gate:
+    input:
+        approval       = "results/approvals/dataset_audit_approved.json",
+        sample_qc_done = "results/sample_qc_audit.csv",
+    output:
+        audit   = "results/feature_qc_audit.csv",
+        method  = "results/feature_qc_method.json",
+    log:
+        "logs/feature_qc_gate.log"
+    shell:
+        """
+        python workers/python/feature_qc_gate.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-audit {output.audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 7 — bulk_process   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule bulk_process:
+    input:
+        approval       = "results/approvals/dataset_audit_approved.json",
+        sample_qc_done = "results/sample_qc_audit.csv",
+        feature_qc_done = "results/feature_qc_audit.csv",
+    output:
+        dir_sentinel = directory("results/bulk"),
+        method       = "results/bulk_method.json",
+    log:
+        "logs/bulk_process.log"
+    shell:
+        """
+        python workers/python/bulk_process.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-dir results/bulk \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 8 — microarray_process   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule microarray_process:
+    input:
+        approval        = "results/approvals/dataset_audit_approved.json",
+        sample_qc_done  = "results/sample_qc_audit.csv",
+        feature_qc_done = "results/feature_qc_audit.csv",
+    output:
+        dir_sentinel = directory("results/microarray"),
+        method       = "results/microarray_method.json",
+    log:
+        "logs/microarray_process.log"
+    shell:
+        """
+        Rscript workers/r/microarray_process.R \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-dir results/microarray \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 9 — single_cell_qc   [gated by stage 3]
+# Note: method output is results/sc_method.json (SPEC §7 exact name)
+# ---------------------------------------------------------------------------
+rule single_cell_qc:
+    input:
+        approval  = "results/approvals/dataset_audit_approved.json",
+        checksums = "data/CHECKSUMS.txt",
+    output:
+        audit   = "results/cell_qc_audit.csv",
+        method  = "results/sc_method.json",
+    log:
+        "logs/single_cell_qc.log"
+    shell:
+        """
+        python workers/python/single_cell_qc.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-audit {output.audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 10 — doublet_detection   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule doublet_detection:
+    input:
+        approval       = "results/approvals/dataset_audit_approved.json",
+        cell_qc_done   = "results/cell_qc_audit.csv",
+    output:
+        audit   = "results/doublet_audit.csv",
+        method  = "results/doublet_method.json",
+    log:
+        "logs/doublet_detection.log"
+    shell:
+        """
+        python workers/python/doublet_detection.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-audit {output.audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 11 — spatial_process   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule spatial_process:
+    input:
+        approval        = "results/approvals/dataset_audit_approved.json",
+        sample_qc_done  = "results/sample_qc_audit.csv",
+        feature_qc_done = "results/feature_qc_audit.csv",
+    output:
+        dir_sentinel = directory("results/spatial"),
+        method       = "results/spatial_method.json",
+    log:
+        "logs/spatial_process.log"
+    shell:
+        """
+        python workers/python/spatial_process.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-dir results/spatial \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 12 — proteomics_process   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule proteomics_process:
+    input:
+        approval        = "results/approvals/dataset_audit_approved.json",
+        sample_qc_done  = "results/sample_qc_audit.csv",
+        feature_qc_done = "results/feature_qc_audit.csv",
+    output:
+        dir_sentinel = directory("results/proteomics"),
+        method       = "results/proteomics_method.json",
+    log:
+        "logs/proteomics_process.log"
+    shell:
+        """
+        python workers/python/proteomics_process.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-dir results/proteomics \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 13 — metabolomics_process   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule metabolomics_process:
+    input:
+        approval        = "results/approvals/dataset_audit_approved.json",
+        sample_qc_done  = "results/sample_qc_audit.csv",
+        feature_qc_done = "results/feature_qc_audit.csv",
+    output:
+        dir_sentinel = directory("results/metabolomics"),
+        method       = "results/metabolomics_method.json",
+    log:
+        "logs/metabolomics_process.log"
+    shell:
+        """
+        python workers/python/metabolomics_process.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-dir results/metabolomics \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 14 — outlier_gate   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule outlier_gate:
+    input:
+        approval        = "results/approvals/dataset_audit_approved.json",
+        sample_qc_done  = "results/sample_qc_audit.csv",
+        feature_qc_done = "results/feature_qc_audit.csv",
+    output:
+        audit   = "results/outlier_audit.csv",
+        method  = "results/outlier_method.json",
+    log:
+        "logs/outlier_gate.log"
+    shell:
+        """
+        python workers/python/outlier_gate.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-audit {output.audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 15 — missingness_imputation_gate   [gated by stage 3]
+# ---------------------------------------------------------------------------
+rule missingness_imputation_gate:
+    input:
+        approval     = "results/approvals/dataset_audit_approved.json",
+        outlier_done = "results/outlier_audit.csv",
+    output:
+        missingness_audit = "results/missingness_audit.csv",
+        imputation_audit  = "results/imputation_audit.csv",
+        method            = "results/missingness_method.json",
+    log:
+        "logs/missingness_imputation_gate.log"
+    shell:
+        """
+        python workers/python/missingness_imputation_gate.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-missingness {output.missingness_audit} \
+            --out-imputation {output.imputation_audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 16 — qc_approval  (produces the second gate artifact)
+# ---------------------------------------------------------------------------
+rule qc_approval:
+    input:
+        sample_qc          = "results/sample_qc_audit.csv",
+        feature_qc         = "results/feature_qc_audit.csv",
+        outlier_audit      = "results/outlier_audit.csv",
+        missingness_audit  = "results/missingness_audit.csv",
+        imputation_audit   = "results/imputation_audit.csv",
+        qc_method          = "results/qc_method.json",
+        sc_method          = "results/sc_method.json",
+    output:
+        approval = "results/approvals/qc_approved.json",
+    log:
+        "logs/qc_approval.log"
+    shell:
+        """
+        python workers/python/qc_approval.py \
+            --config config.yaml \
+            --sample-qc {input.sample_qc} \
+            --feature-qc {input.feature_qc} \
+            --outlier-audit {input.outlier_audit} \
+            --missingness-audit {input.missingness_audit} \
+            --imputation-audit {input.imputation_audit} \
+            --out-approval {output.approval} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 17 — differential_expression   [gated by stage 16]
+# ---------------------------------------------------------------------------
+rule differential_expression:
+    input:
+        approval       = "results/approvals/qc_approved.json",
+        dataset_audit  = "results/dataset_audit.csv",
+    output:
+        audit   = "results/de/de_audit.csv",
+        method  = "results/de/de_method.json",
+    log:
+        "logs/differential_expression.log"
+    shell:
+        """
+        python workers/python/differential_expression.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --dataset-audit {input.dataset_audit} \
+            --out-dir results/de \
+            --out-audit {output.audit} \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 18 — integration   [gated by stage 16]
+# ---------------------------------------------------------------------------
+rule integration:
+    input:
+        approval  = "results/approvals/qc_approved.json",
+        de_done   = "results/de/de_audit.csv",
+    output:
+        dir_sentinel = directory("results/integration"),
+        method       = "results/integration_method.json",
+    log:
+        "logs/integration.log"
+    shell:
+        """
+        python workers/python/integration.py \
+            --config config.yaml \
+            --approval {input.approval} \
+            --out-dir results/integration \
+            --out-method {output.method} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 19 — checksums  (covers result tables, independent of approval gates)
+# ---------------------------------------------------------------------------
+rule checksums:
+    input:
+        dataset_audit     = "results/dataset_audit.csv",
+        modality          = "results/modality_detected.csv",
+        sample_qc         = "results/sample_qc_audit.csv",
+        feature_qc        = "results/feature_qc_audit.csv",
+        outlier_audit     = "results/outlier_audit.csv",
+        missingness_audit = "results/missingness_audit.csv",
+        imputation_audit  = "results/imputation_audit.csv",
+        de_audit          = "results/de/de_audit.csv",
+        raw_checksums     = "data/CHECKSUMS.txt",
+    output:
+        checksums = "results/CHECKSUMS.txt",
+    log:
+        "logs/checksums.log"
+    shell:
+        """
+        python workers/python/checksums.py \
+            --config config.yaml \
+            --inputs \
+                {input.dataset_audit} \
+                {input.modality} \
+                {input.sample_qc} \
+                {input.feature_qc} \
+                {input.outlier_audit} \
+                {input.missingness_audit} \
+                {input.imputation_audit} \
+                {input.de_audit} \
+            --out-checksums {output.checksums} \
+            > {log} 2>&1
+        """
+
+
+# ---------------------------------------------------------------------------
+# Stage 20 — final_verifier  (exits non-zero on BLOCKED)
+# ---------------------------------------------------------------------------
+rule final_verifier:
+    input:
+        run_config        = "config.yaml",
+        modality          = "results/modality_detected.csv",
+        dataset_audit     = "results/dataset_audit.csv",
+        dataset_approval  = "results/approvals/dataset_audit_approved.json",
+        sample_qc         = "results/sample_qc_audit.csv",
+        feature_qc        = "results/feature_qc_audit.csv",
+        outlier_audit     = "results/outlier_audit.csv",
+        missingness_audit = "results/missingness_audit.csv",
+        imputation_audit  = "results/imputation_audit.csv",
+        qc_approval       = "results/approvals/qc_approved.json",
+        de_audit          = "results/de/de_audit.csv",
+        checksums         = "results/CHECKSUMS.txt",
+    output:
+        run_status = "results/run_status.json",
+    log:
+        "logs/final_verifier.log"
+    shell:
+        """
+        python scripts/verify.py \
+            --config config.yaml \
+            --out-status {output.run_status} \
+            > {log} 2>&1
+        """

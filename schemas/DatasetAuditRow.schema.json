@@ -1,0 +1,99 @@
+{
+  "$defs": {
+    "Decision": {
+      "enum": [
+        "INCLUDE",
+        "REJECT"
+      ],
+      "title": "Decision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "accession": {
+      "title": "Accession",
+      "type": "string"
+    },
+    "organism_verbatim": {
+      "default": "",
+      "title": "Organism Verbatim",
+      "type": "string"
+    },
+    "platform_GPL": {
+      "default": "",
+      "title": "Platform Gpl",
+      "type": "string"
+    },
+    "gdstype": {
+      "default": "",
+      "title": "Gdstype",
+      "type": "string"
+    },
+    "assay_detected": {
+      "default": "",
+      "title": "Assay Detected",
+      "type": "string"
+    },
+    "n_total": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "N Total"
+    },
+    "n_case": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "N Case"
+    },
+    "n_control": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "N Control"
+    },
+    "tissue": {
+      "default": "",
+      "title": "Tissue",
+      "type": "string"
+    },
+    "decision": {
+      "$ref": "#/$defs/Decision"
+    },
+    "trigger_field": {
+      "default": "",
+      "title": "Trigger Field",
+      "type": "string"
+    },
+    "trigger_value": {
+      "default": "",
+      "title": "Trigger Value",
+      "type": "string"
+    }
+  },
+  "required": [
+    "accession",
+    "decision"
+  ],
+  "title": "DatasetAuditRow",
+  "type": "object"
+}

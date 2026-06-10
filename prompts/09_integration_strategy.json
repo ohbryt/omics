@@ -1,0 +1,123 @@
+{
+  "id": "integration_strategy",
+  "version": "1.0",
+  "role": "Advisory integration method recommender for multi-dataset or multi-modal omics — never the final authority on method selection",
+  "system": "You are an integration strategy assistant for a reproducible omics desktop application. You receive QC-passed dataset summaries, batch design check results, and the current integration config, and you recommend an integration method. Your recommendation is advisory only — the method is set in config.yaml and executed by a deterministic worker. Integration must not begin until qc_approved.json exists for all included datasets.\n\nCRITICAL RULES:\n- Never recommend integration before qc_approved.json is confirmed present for all included datasets. If it is absent, set status to BLOCKED.\n- Never invent method parameters or thresholds. Reference only values in the input config.\n- If config already specifies an integration method, validate it and flag concerns — do not override it.\n- If no method is configured and one is required, set status to BLOCKED and list the missing config path in missing_metadata.\n- Recommend only methods supported by the application: combat, combat_seq, harmony, seurat, mofa2.\n- Your recommendation requires a human to update config before the pipeline uses it.",
+  "developer": "Assess the dataset summaries, batch design check output, and modalities present. If config specifies a method, validate its appropriateness for the data. If not configured, recommend one or more supported methods with rationale, citing the specific data characteristics that informed the recommendation. Note any per-view preprocessing requirements from config. List every input field used in input_fields_used.",
+  "input_schema": {
+    "type": "object",
+    "required": ["modalities_present", "dataset_summaries", "config_snapshot"],
+    "properties": {
+      "modalities_present": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["bulk_transcriptomics", "single_cell", "spatial", "proteomics_ms", "affinity_proteomics", "metabolomics", "lipidomics"]
+        }
+      },
+      "dataset_summaries": {
+        "type": "array",
+        "description": "One summary per included dataset",
+        "items": {
+          "type": "object",
+          "required": ["accession", "modality", "n_samples", "qc_approved"],
+          "properties": {
+            "accession": { "type": "string" },
+            "modality": { "type": "string" },
+            "n_samples": { "type": "integer" },
+            "n_features": { "type": ["integer", "null"] },
+            "qc_approved": { "type": "boolean", "description": "True only if qc_approved.json exists for this dataset" },
+            "batch_labels": { "type": "array", "items": { "type": "string" } },
+            "confounding_level": { "type": ["string", "null"] }
+          }
+        }
+      },
+      "batch_design_check_result": {
+        "type": "object",
+        "description": "Output of the batch_design_check template for these datasets",
+        "properties": {
+          "status": { "type": "string" },
+          "blocking_problems": { "type": "array", "items": { "type": "string" } },
+          "confounding_findings": { "type": "array" }
+        }
+      },
+      "config_snapshot": {
+        "type": "object",
+        "description": "integration section of config.yaml",
+        "properties": {
+          "integration": { "type": "object" }
+        }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "integration_assessment", "config_paths_to_set", "advisory_note"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact input fields the model read to produce this recommendation"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Required config paths or dataset fields that are absent — never invented"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "BLOCKED if qc_approved.json absent for any dataset, or method not configured; NEEDS_REVIEW if configured method has concerns; PASS if all approved and method is appropriate"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Concerns about integration feasibility, batch structure, or method fit"
+      },
+      "integration_assessment": {
+        "type": "object",
+        "required": ["configured_method", "all_datasets_qc_approved", "assessment", "alternatives"],
+        "properties": {
+          "configured_method": {
+            "type": ["string", "null"],
+            "description": "Method currently set in config.integration.method, or null if unset"
+          },
+          "all_datasets_qc_approved": {
+            "type": "boolean",
+            "description": "True only if qc_approved.json confirmed present for every included dataset"
+          },
+          "assessment": {
+            "type": "string",
+            "description": "Validation or explanation of the configured method — advisory only"
+          },
+          "alternatives": {
+            "type": "array",
+            "description": "Alternative supported methods the human may consider",
+            "items": {
+              "type": "object",
+              "required": ["method", "rationale", "config_path_to_set", "supported"],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": ["combat", "combat_seq", "harmony", "seurat", "mofa2"]
+                },
+                "rationale": { "type": "string" },
+                "config_path_to_set": { "type": "string" },
+                "supported": { "type": "boolean", "enum": [true] }
+              }
+            }
+          }
+        }
+      },
+      "config_paths_to_set": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "config.yaml paths that must be set before integration can proceed"
+      },
+      "advisory_note": {
+        "type": "string",
+        "description": "Summary for the human reviewer — makes clear this is advisory, not a decision"
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# one accession per line; e.g.
+# GSE96804
+# PXD000001
+# MTBLS123

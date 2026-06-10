@@ -1,0 +1,54 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "accession": {
+      "title": "Accession",
+      "type": "string"
+    },
+    "fetched_utc": {
+      "title": "Fetched Utc",
+      "type": "string"
+    },
+    "source_api": {
+      "title": "Source Api",
+      "type": "string"
+    },
+    "fields": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Fields",
+      "type": "object"
+    },
+    "checksum": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checksum"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    }
+  },
+  "required": [
+    "accession",
+    "source_api"
+  ],
+  "title": "MetadataSnapshot",
+  "type": "object"
+}

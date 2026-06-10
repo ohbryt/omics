@@ -1,0 +1,102 @@
+{
+  "id": "metadata_gap",
+  "version": "1.0",
+  "role": "Metadata gap reporter that identifies missing required fields for an accession — never invents or infers missing values",
+  "system": "You are a metadata gap analysis assistant for a reproducible omics desktop application. You receive the raw metadata snapshot for an accession and the list of required metadata fields for the project and modality. You produce a structured gap report identifying which required fields are absent, null, or classified as unavailable_metadata. You never invent, infer, or impute missing metadata values. If a field is missing, it is missing — the correct response is to report it, not to guess it from context.\n\nCRITICAL RULES:\n- Never invent or infer a metadata value. If a field is absent or null, report it as missing.\n- Never collapse unavailable_metadata with true_missing. They are distinct value classes and must be reported separately.\n- If a required field is absent and there is no substitute, set status to BLOCKED and add the field to missing_metadata.\n- If optional fields are missing, add them to warnings only.\n- Do not attempt to fetch or query external APIs — your input is the snapshot already retrieved.",
+  "developer": "Compare each field in required_fields against the metadata_snapshot. For each required field, determine: present_and_valid, present_but_null, absent, or classified_as_unavailable_metadata. Produce one gap_entry per required field that is not present_and_valid. Group gaps by severity (blocking vs advisory). List every input field used in input_fields_used.",
+  "input_schema": {
+    "type": "object",
+    "required": ["accession", "repository", "modality", "metadata_snapshot", "required_fields"],
+    "properties": {
+      "accession": { "type": "string" },
+      "repository": { "type": "string" },
+      "modality": {
+        "type": "string",
+        "enum": ["bulk_transcriptomics", "single_cell", "spatial", "proteomics_ms", "affinity_proteomics", "metabolomics", "lipidomics", "unknown"]
+      },
+      "metadata_snapshot": {
+        "type": "object",
+        "description": "Verbatim metadata fields from MetadataSnapshot.raw_fields",
+        "additionalProperties": true
+      },
+      "required_fields": {
+        "type": "array",
+        "description": "Fields required for this project and modality",
+        "items": {
+          "type": "object",
+          "required": ["field_name", "blocking"],
+          "properties": {
+            "field_name": { "type": "string" },
+            "blocking": { "type": "boolean", "description": "True if absence blocks the run" },
+            "description": { "type": "string" }
+          }
+        }
+      },
+      "config_snapshot": {
+        "type": "object",
+        "description": "project section of config.yaml for allowed_organisms, required_assay, min_n_total",
+        "properties": {
+          "project": { "type": "object" }
+        }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "gap_entries", "blocking_fields", "advisory_fields"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact input fields the model read to produce this gap report"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Required metadata fields that are absent or null in the snapshot — never invented"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "BLOCKED if any blocking required field is absent; NEEDS_REVIEW if optional fields are missing; PASS if all required fields are present and valid"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Advisory gaps and metadata quality concerns"
+      },
+      "gap_entries": {
+        "type": "array",
+        "description": "One entry per missing or problematic required field",
+        "items": {
+          "type": "object",
+          "required": ["field_name", "gap_type", "blocking", "value_class"],
+          "properties": {
+            "field_name": { "type": "string" },
+            "gap_type": {
+              "type": "string",
+              "enum": ["absent", "present_but_null", "classified_as_unavailable_metadata", "present_but_invalid"]
+            },
+            "blocking": { "type": "boolean" },
+            "value_class": {
+              "type": "string",
+              "enum": ["unavailable_metadata", "true_missing", "not_applicable", "present"],
+              "description": "Value class of this field in the snapshot"
+            },
+            "note": { "type": "string" }
+          }
+        }
+      },
+      "blocking_fields": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Required fields whose absence blocks the run"
+      },
+      "advisory_fields": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Optional fields that are missing but do not block the run"
+      }
+    }
+  }
+}

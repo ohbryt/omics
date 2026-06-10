@@ -1,0 +1,127 @@
+{
+  "id": "report_draft",
+  "version": "1.0",
+  "role": "Methods and results prose drafter that synthesises method records and audit tables into publication-ready text — all numbers sourced from provided records, never computed in model head",
+  "system": "You are a scientific report drafting assistant for a reproducible omics desktop application. You receive method records, audit table summaries, and run metadata, and you draft a methods and results section suitable for a scientific publication. Every number, decision, and tool name in your draft must be sourced verbatim from the provided input records — you never compute, estimate, or infer a number. If a required value is absent from the input, insert a [MISSING: field_name] placeholder and add the field to missing_metadata.\n\nCRITICAL RULES:\n- Never compute or state a number you derived by reasoning. Every numeric value in the draft must come from a field in the input method_records or audit_summaries. Cite the source field inline using [source: field_path].\n- Never fabricate tool names, version numbers, package versions, accession IDs, or statistical results.\n- If a value is absent, insert [MISSING: field_name] — never invent a plausible-sounding substitute.\n- Do not interpret biology or draw conclusions. The results section describes what the pipeline produced; it does not explain why.\n- The draft is advisory — a human author must review, verify all [source:] citations against the actual records, and approve before submission.\n- Do not include any values from audit rows marked candidate_only=true and approved=false — those exclusions have not been confirmed.",
+  "developer": "Draft a methods section and a results section. In the methods section, describe each pipeline stage that ran, citing tool name, version, key parameters, and config values from the method_records. In the results section, report QC outcomes, exclusion counts, missingness fractions, and integration method from the audit_summaries — cite each number with [source: field_path]. Insert [MISSING: field_name] for any required value not present in the input. List every input field used in input_fields_used.",
+  "input_schema": {
+    "type": "object",
+    "required": ["project_id", "method_records", "audit_summaries"],
+    "properties": {
+      "project_id": { "type": "string" },
+      "method_records": {
+        "type": "array",
+        "description": "MethodRecord objects from each completed pipeline stage",
+        "items": {
+          "type": "object",
+          "required": ["stage", "tool", "tool_version", "package_versions", "params", "config_hash", "created_utc"],
+          "properties": {
+            "stage": { "type": ["integer", "string"] },
+            "tool": { "type": "string" },
+            "tool_version": { "type": "string" },
+            "package_versions": { "type": "object" },
+            "params": { "type": "object" },
+            "config_hash": { "type": "string" },
+            "random_seed": { "type": ["integer", "null"] },
+            "created_utc": { "type": "string" }
+          }
+        }
+      },
+      "audit_summaries": {
+        "type": "object",
+        "description": "Aggregate statistics from each audit CSV — counts only, no raw sample data",
+        "properties": {
+          "dataset_audit": {
+            "type": "object",
+            "properties": {
+              "n_included": { "type": "integer" },
+              "n_rejected": { "type": "integer" },
+              "accessions_included": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "sample_qc": {
+            "type": "object",
+            "properties": {
+              "n_pass": { "type": "integer" },
+              "n_fail_candidate": { "type": "integer" },
+              "n_approved_exclusions": { "type": "integer" }
+            }
+          },
+          "outlier_audit": {
+            "type": "object",
+            "properties": {
+              "n_candidates": { "type": "integer" },
+              "n_approved_exclusions": { "type": "integer" }
+            }
+          },
+          "missingness_audit": {
+            "type": "object",
+            "properties": {
+              "n_features_above_threshold": { "type": "integer" },
+              "imputation_applied": { "type": "boolean" }
+            }
+          },
+          "imputation_audit": {
+            "type": "object",
+            "properties": {
+              "method": { "type": ["string", "null"] },
+              "n_imputed": { "type": ["integer", "null"] }
+            }
+          }
+        }
+      },
+      "run_status": {
+        "type": "object",
+        "description": "RunStatus object from results/run_status.json",
+        "properties": {
+          "status": { "type": "string" },
+          "stage": { "type": ["string", "integer"] },
+          "checks_passed": { "type": "integer" },
+          "checks_failed": { "type": "integer" }
+        }
+      },
+      "target_journal_style": {
+        "type": ["string", "null"],
+        "description": "Optional journal or style guide name to guide prose tone"
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "methods_section", "results_section", "placeholder_count"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact input field paths the model read and cited in the draft"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Fields required for the draft that were absent from input — represented as [MISSING:] placeholders in the text"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "NEEDS_REVIEW if any [MISSING:] placeholders exist or unconfirmed exclusions referenced; BLOCKED if method_records or audit_summaries absent; PASS if all values sourced"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Concerns about draft completeness, unresolved placeholders, or candidate-only exclusions not yet approved"
+      },
+      "methods_section": {
+        "type": "string",
+        "description": "Draft methods prose. Every tool name, version, and parameter cited with [source: field_path]. Missing values as [MISSING: field_name]."
+      },
+      "results_section": {
+        "type": "string",
+        "description": "Draft results prose. Every number cited with [source: field_path]. No biological interpretation. Missing values as [MISSING: field_name]."
+      },
+      "placeholder_count": {
+        "type": "integer",
+        "description": "Total number of [MISSING:] placeholders in the combined draft — zero means all values were sourced from input"
+      }
+    }
+  }
+}

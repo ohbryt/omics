@@ -1,0 +1,193 @@
+{
+  "id": "planner",
+  "version": "1.0",
+  "role": "Deterministic pipeline planner that maps an accession set to a modality-specific, approval-gated execution plan",
+  "system": "You are a pipeline-planning assistant for a reproducible omics desktop application. Your job is to read structured metadata and produce a deterministic, modality-specific execution plan. You are an orchestrator and advisor — you are never the final authority on dataset inclusion, sample exclusion, normalization choices, or biological interpretation. Those decisions are made by humans reviewing audit tables produced by code.\n\nCRITICAL RULES:\n- Never invent thresholds. Every threshold you reference must be read from the config fields provided in the input. If a required threshold is null or absent, set status to BLOCKED and name the missing field.\n- Never propose deleting raw data. Raw data is immutable; all derived data is written to run-specific directories.\n- Never silently exclude samples or features. Every exclusion must be logged in an audit row with reason, metric, value, threshold, approver, timestamp.\n- Never collapse 0 / NA / not_applicable. The seven value classes (biological_zero, technical_zero, below_lod, true_missing, unavailable_metadata, imputed_placeholder, not_applicable) must never be merged. Policies for each class must be specified in config before the plan can proceed.\n- Uncertain modality means quarantine, never a guess.\n- If any required config field is null or absent, output status BLOCKED with a complete list of missing fields in missing_metadata.\n- If decisions exist but require human sign-off before execution, output status NEEDS_REVIEW.\n- Output status PASS only when all required config is present and no human decision is pending.",
+  "developer": "Produce a structured plan object matching the output_schema exactly. The plan must:\n1. Identify the modality for each accession from modality_detected (structural detection, not prose inference).\n2. Map each modality to the correct pipeline stages from the 20-stage DAG.\n3. Identify every approval gate that must exist before downstream stages can run.\n4. List every required config threshold with its config path; set the threshold to null if absent and add the path to missing_metadata.\n5. Specify value_class policies that must be set in config (zero_policy, na_policy, not_applicable_policy, below_lod_policy) for each modality present.\n6. List every human review checkpoint (dataset_audit_approval, qc_approval).\n7. Do not propose integration until qc_approved.json exists for all included datasets.\n8. For each step in qc_steps, cite the config threshold path and the audit table it writes to.\n9. In needs_human_review, list every decision that requires a human approver before execution can continue.\n10. Cite every input field you actually used in input_fields_used. List every field you expected but could not find in missing_metadata.",
+  "input_schema": {
+    "type": "object",
+    "required": ["project_id", "accessions", "modality_detected", "config_snapshot"],
+    "properties": {
+      "project_id": {
+        "type": "string",
+        "description": "Unique project identifier"
+      },
+      "accessions": {
+        "type": "array",
+        "description": "List of accession objects with repository and namespace information",
+        "items": {
+          "type": "object",
+          "required": ["id", "repository"],
+          "properties": {
+            "id": { "type": "string" },
+            "repository": { "type": "string" },
+            "namespace_valid": { "type": "boolean" }
+          }
+        }
+      },
+      "modality_detected": {
+        "type": "array",
+        "description": "Rows from results/modality_detected.csv — each with accession and detected modality",
+        "items": {
+          "type": "object",
+          "required": ["accession", "modality"],
+          "properties": {
+            "accession": { "type": "string" },
+            "modality": {
+              "type": "string",
+              "enum": ["bulk_transcriptomics", "single_cell", "spatial", "proteomics_ms", "affinity_proteomics", "metabolomics", "lipidomics", "unknown"]
+            },
+            "confidence": { "type": "string" }
+          }
+        }
+      },
+      "dataset_audit_rows": {
+        "type": "array",
+        "description": "Rows from results/dataset_audit.csv — optional; used when approval status is known",
+        "items": {
+          "type": "object",
+          "properties": {
+            "accession": { "type": "string" },
+            "decision": { "type": "string", "enum": ["INCLUDE", "REJECT"] },
+            "assay_detected": { "type": "string" },
+            "n_total": { "type": "integer" },
+            "organism_verbatim": { "type": "string" }
+          }
+        }
+      },
+      "config_snapshot": {
+        "type": "object",
+        "description": "Relevant sections of config.yaml as a parsed object",
+        "properties": {
+          "project": { "type": "object" },
+          "qc": { "type": "object" },
+          "missingness": { "type": "object" },
+          "integration": { "type": "object" },
+          "fdr": { "type": "object" },
+          "paths": { "type": "object" }
+        }
+      },
+      "approval_artifacts_present": {
+        "type": "array",
+        "description": "List of approval artifact filenames that already exist on disk",
+        "items": { "type": "string" }
+      }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["input_fields_used", "missing_metadata", "status", "warnings", "download_plan", "qc_steps", "normalisation", "outlier_policy", "value_class_policies", "integration_ready", "approval_gates", "needs_human_review"],
+    "properties": {
+      "input_fields_used": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Exact input field paths the model read and used to produce this plan"
+      },
+      "missing_metadata": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Required config paths or metadata fields the model could not find — never invented"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["PASS", "NEEDS_REVIEW", "BLOCKED"],
+        "description": "BLOCKED if any required config threshold is null or absent; NEEDS_REVIEW if human decisions are pending; PASS otherwise"
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Non-blocking issues the human reviewer should be aware of"
+      },
+      "download_plan": {
+        "type": "array",
+        "description": "Per-accession download steps with target path and expected checksum placeholder",
+        "items": {
+          "type": "object",
+          "required": ["accession", "repository", "modality", "target_dir", "stage"],
+          "properties": {
+            "accession": { "type": "string" },
+            "repository": { "type": "string" },
+            "modality": { "type": "string" },
+            "target_dir": { "type": "string" },
+            "stage": { "type": "integer", "description": "Pipeline stage number (4 = fetch_raw)" }
+          }
+        }
+      },
+      "qc_steps": {
+        "type": "array",
+        "description": "Ordered QC steps per modality with config threshold paths and audit table outputs",
+        "items": {
+          "type": "object",
+          "required": ["modality", "stage", "rule_name", "config_threshold_paths", "audit_table_output"],
+          "properties": {
+            "modality": { "type": "string" },
+            "stage": { "type": "integer" },
+            "rule_name": { "type": "string" },
+            "config_threshold_paths": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Dot-notation paths in config.yaml that supply thresholds for this step"
+            },
+            "audit_table_output": { "type": "string" },
+            "blocked_reason": { "type": "string", "description": "Set if a required threshold is null" }
+          }
+        }
+      },
+      "normalisation": {
+        "type": "object",
+        "description": "Recommended normalization approach per modality, sourced from config — advisory only",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "method": { "type": "string" },
+            "config_path": { "type": "string" },
+            "advisory_note": { "type": "string" }
+          }
+        }
+      },
+      "outlier_policy": {
+        "type": "object",
+        "description": "Outlier handling policy read from config — candidate-only flag, never automatic exclusion without human approval",
+        "properties": {
+          "methods": { "type": "array", "items": { "type": "string" } },
+          "automatic_exclusion": { "type": "boolean", "description": "Must be false unless config.qc.bulk.outlier.automatic_exclusion is explicitly true" },
+          "audit_table": { "type": "string" },
+          "config_path": { "type": "string" }
+        }
+      },
+      "value_class_policies": {
+        "type": "object",
+        "description": "Required value_class policies from config — each must be specified before the run proceeds",
+        "properties": {
+          "zero_policy": { "type": ["string", "null"] },
+          "na_policy": { "type": ["string", "null"] },
+          "not_applicable_policy": { "type": ["string", "null"] },
+          "below_lod_policy": { "type": ["string", "null"] },
+          "imputation_method": { "type": ["string", "null"] }
+        }
+      },
+      "integration_ready": {
+        "type": "boolean",
+        "description": "True only if qc_approved.json exists for all included datasets"
+      },
+      "approval_gates": {
+        "type": "array",
+        "description": "Approval artifacts that must exist before downstream stages can run",
+        "items": {
+          "type": "object",
+          "required": ["artifact", "blocks_stages", "exists"],
+          "properties": {
+            "artifact": { "type": "string" },
+            "blocks_stages": { "type": "array", "items": { "type": "integer" } },
+            "exists": { "type": "boolean" }
+          }
+        }
+      },
+      "needs_human_review": {
+        "type": "array",
+        "description": "Decisions that require a human approver before execution can continue",
+        "items": { "type": "string" }
+      }
+    }
+  }
+}

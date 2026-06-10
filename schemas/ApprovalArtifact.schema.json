@@ -1,0 +1,59 @@
+{
+  "$defs": {
+    "ApprovalDecision": {
+      "enum": [
+        "APPROVED",
+        "REJECTED"
+      ],
+      "title": "ApprovalDecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact": {
+      "title": "Artifact",
+      "type": "string"
+    },
+    "approves": {
+      "title": "Approves",
+      "type": "string"
+    },
+    "approver": {
+      "title": "Approver",
+      "type": "string"
+    },
+    "approved_utc": {
+      "title": "Approved Utc",
+      "type": "string"
+    },
+    "config_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config Hash"
+    },
+    "decision": {
+      "$ref": "#/$defs/ApprovalDecision",
+      "default": "APPROVED"
+    },
+    "note": {
+      "default": "",
+      "title": "Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact",
+    "approves",
+    "approver"
+  ],
+  "title": "ApprovalArtifact",
+  "type": "object"
+}

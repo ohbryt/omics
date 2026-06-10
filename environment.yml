@@ -1,0 +1,26 @@
+# Pinned environment. After editing, freeze exact versions:
+#   conda env create -f environment.yml && conda env export > environment.lock.yml
+#   (or use conda-lock for cross-platform reproducibility)
+# Run inside a container with a fixed image digest for full reproducibility.
+name: reproducible-omics
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - pyyaml=6.0.1
+  - pandas=2.2.2
+  - requests=2.32.3
+  - snakemake-minimal=8.14.0
+  # --- R + Bioconductor (pin Bioc release for annotation stability) ---
+  - r-base=4.3.3
+  - bioconductor-limma=3.58.1
+  - bioconductor-affy=1.80.0            # microarray RMA
+  - bioconductor-geoquery=2.70.0
+  - bioconductor-deseq2=1.42.0          # rna-seq
+  - bioconductor-edger=4.0.16
+  - r-metafor=4.6.0                     # random-effects meta of standardized effects
+  - r-jsonlite=1.8.8
+  # pin the platform annotation + jetset packages you actually use, e.g.:
+  # - bioconductor-hgu133plus2.db=3.13.0
+  # - r-jetset=3.4.0

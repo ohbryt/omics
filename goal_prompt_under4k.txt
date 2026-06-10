@@ -1,0 +1,27 @@
+Build a local-first DESKTOP APP for AI-assisted omics discovery, download, QC, analysis, and multi-omics integration, in this repo. Full spec = docs/SPEC.md (authoritative; all detail). Build against it.
+
+Core: deterministic and fail-loud at every assay boundary. AI orchestrates and writes code; it is NEVER the final judge of dataset inclusion, sample exclusion, outlier removal, imputation, normalization, or interpretation — those are config-driven, logged, auditable, verified.
+
+Non-negotiables (a verifier enforces; don't weaken):
+- Raw data immutable; derived versioned; decisions append-only (reason, metric, threshold, approver, time).
+- Reproducible from accessions, config.yaml, container digests, versions, checksums, prompts, code hashes, logs.
+- Final status always exactly PASS / NEEDS_REVIEW / BLOCKED; block when metadata, thresholds, QC artifacts, method records, or approvals are missing.
+- Distinguish in schema: biological zero / technical zero / below-LOD / true missing / unavailable metadata / imputed placeholder / not-applicable; never collapse them.
+- Outliers flagged by code rules and logged, never on inspection; no auto sample deletion. Single-cell: cell QC + ambient-RNA + doublet detection + pseudobulk-by-donor DE unless config justifies.
+- No thresholds outside config.yaml. Every generated script: validate inputs, explicit UTF-8 I/O, exceptions, capture versions, write method JSON + audit CSV + run-specific dir, stop on schema mismatch.
+- Secrets never in renderer; vendor keys backend-only (keychain dev / OAuth-OIDC prod); redact metadata before prompts; never send raw sequence, full matrices, or patient data to a model unless enabled.
+- DE/integration never run before required approval artifacts exist.
+
+Work style:
+- Enough to act → act. If truly ambiguous, ask a few questions in one batch, then proceed with a default noted in docs/decisions/NOTES.md; don't narrate options you won't pursue.
+- Build only what SPEC.md + Milestone 1 need; the gates ARE the product; nothing beyond spec.
+- Parallelize with subagents; after each component, verify with a FRESH-CONTEXT verifier subagent against SPEC.md and the acceptance.
+- Ground every progress claim in a tool result; show failing output; never report an unverified status.
+- Pause only for irreversible actions, real scope change, or user-only input (credentials); else go end to end. Don't echo internal reasoning as text — report outcomes; lead with the outcome + verify STATUS.
+
+Deliverables in order: (1) monorepo apps/desktop, apps/backend, workflows/snakemake, workers/python, workers/r, prompts, schemas, tests, docs; (2) config.yaml schema + Pydantic validator; (3) core Pydantic models; (4) Snakemake skeleton of the 20 stages, each emitting audit table + method record, downstream gated on approvals; (5) scripts/verify.py (15 conditions; UTF-8 reads; emits STATUS; non-zero on fail); (6) 12 JSON-schema prompt templates; (7) desktop-backend + AI-gateway contracts logging model, prompt version, request/response IDs, timestamp, code hash.
+
+Milestone 1, end to end: config schema; project creation; accession metadata-fetch stub; modality-detect stub; dataset_audit.csv; approval artifact; sample_qc/outlier/missingness schemas; verify.py; planner + code-gen prompts.
+Acceptance (fresh-context verifier confirms): project + config.yaml created; accession to metadata snapshot stored; results/modality_detected.csv + results/dataset_audit.csv produced; downstream blocked until results/approvals/dataset_audit_approved.json exists; verify.py blocks empty audits, reads UTF-8, emits STATUS; generated code saved+hashed+logged; small fixtures + CI for verify.py and config.
+
+Done = scaffold + Milestone-1 exist, verify.py prints an explicit STATUS, acceptance passes under a fresh-context verifier subagent, CI passes. Report STATUS with evidence; if blocked on user-only input, say what is needed and stop.

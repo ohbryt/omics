@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "Status": {
+      "description": "Terminal run status (SPEC 1.2). Always exactly one of these.",
+      "enum": [
+        "PASS",
+        "NEEDS_REVIEW",
+        "BLOCKED"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "$ref": "#/$defs/Status"
+    },
+    "stage": {
+      "title": "Stage",
+      "type": "string"
+    },
+    "checks_passed": {
+      "default": 0,
+      "title": "Checks Passed",
+      "type": "integer"
+    },
+    "checks_failed": {
+      "default": 0,
+      "title": "Checks Failed",
+      "type": "integer"
+    },
+    "details": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Details",
+      "type": "array"
+    },
+    "created_utc": {
+      "title": "Created Utc",
+      "type": "string"
+    }
+  },
+  "required": [
+    "status",
+    "stage"
+  ],
+  "title": "RunStatus",
+  "type": "object"
+}

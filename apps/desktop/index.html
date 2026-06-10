@@ -4,13 +4,93 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Omics Desktop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg-base:       #0e0f13;
+        --bg-surface:    #16181d;
+        --bg-elevated:   #1c1f27;
+        --bg-hover:      #20232b;
+        --border:        #23262e;
+        --border-subtle: #1c1f24;
+
+        --accent:        #6366f1;   /* indigo-500 */
+        --accent-dim:    #3730a3;
+        --accent-glow:   rgba(99, 102, 241, 0.12);
+
+        --text-primary:  #e8eaf0;
+        --text-secondary:#8b8fa8;
+        --text-muted:    #4a4e62;
+        --text-accent:   #818cf8;   /* indigo-400 */
+
+        --green:         #22c55e;
+        --green-dim:     rgba(34, 197, 94, 0.12);
+        --amber:         #f59e0b;
+        --amber-dim:     rgba(245, 158, 11, 0.12);
+        --red:           #ef4444;
+        --red-dim:       rgba(239, 68, 68, 0.12);
+
+        --radius-sm:     6px;
+        --radius-md:     10px;
+        --radius-lg:     14px;
+
+        --font-sans:     "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+        --font-mono:     "IBM Plex Mono", "Fira Code", monospace;
+
+        --sidebar-w:     236px;
+      }
+
+      html, body, #root {
+        height: 100%;
+        overflow: hidden;
+      }
+
       body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #0f1117;
-        color: #e2e8f0;
-        min-height: 100vh;
+        font-family: var(--font-sans);
+        background: var(--bg-base);
+        color: var(--text-primary);
+        font-size: 13px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+      /* Focus ring */
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* Selection */
+      ::selection {
+        background: rgba(99, 102, 241, 0.3);
+        color: var(--text-primary);
+      }
+
+      code {
+        font-family: var(--font-mono);
+        font-size: 0.875em;
+        background: var(--bg-elevated);
+        padding: 1px 5px;
+        border-radius: 4px;
+        color: var(--text-accent);
       }
     </style>
   </head>

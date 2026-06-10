@@ -19,12 +19,17 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+# Repo root (where scripts/ + apps/ live) — used to locate the backend package.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+# The workspace being verified. Defaults to the repo root, but per-project runs set
+# OMICS_ROOT so the verifier reads that project's config.yaml + results/.
+ROOT = Path(os.environ.get("OMICS_ROOT") or REPO_ROOT).resolve()
 # Make the backend package importable for config validation (condition 2).
-sys.path.insert(0, str(ROOT / "apps" / "backend"))
+sys.path.insert(0, str(REPO_ROOT / "apps" / "backend"))
 
 try:
     import yaml
@@ -98,6 +103,7 @@ def emit_and_exit() -> None:
         code = 0
 
     # Write run_status.json (UTF-8). Stdlib RunStatus shape mirrors models.RunStatus.
+    from datetime import datetime, timezone
     run_status = {
         "status": status,
         "stage": "final_verifier",
@@ -105,6 +111,7 @@ def emit_and_exit() -> None:
         "checks_failed": len(fails),
         "details": [m for m, _ in fails] + [f"review: {m}" for m in REVIEW],
         "conditions_failed": sorted({c for _, c in fails}),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
     }
     out = ROOT / "results" / "run_status.json"
     out.parent.mkdir(parents=True, exist_ok=True)

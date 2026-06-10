@@ -1,7 +1,7 @@
 /**
  * App.tsx — Multi-view desktop shell for the AI-assisted omics application.
  *
- * Views (navigated via a simple tab bar):
+ * Views (navigated via a left sidebar):
  *   1. ProjectCreate   — create a new project + config.yaml
  *   2. AccessionEntry  — add accession IDs to a project
  *   3. ModalityDetect  — run structural modality detection
@@ -41,127 +41,231 @@ import {
 import type { Status } from "./types";
 
 // ---------------------------------------------------------------------------
-// Inline styles — no build-time CSS dependency required for the scaffold.
+// Design tokens (mirrors CSS custom properties defined in index.html)
 // ---------------------------------------------------------------------------
 
-const s = {
-  app: { display: "flex", height: "100vh", flexDirection: "column" as const },
-  header: {
-    background: "#1a1d2e",
-    borderBottom: "1px solid #2d3150",
-    padding: "0 1.5rem",
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    flexShrink: 0,
-  },
-  logo: { fontWeight: 700, fontSize: "1rem", color: "#818cf8", marginRight: "1rem" },
-  tabBtn: (active: boolean): React.CSSProperties => ({
-    padding: "0.75rem 1rem",
-    background: "none",
-    border: "none",
-    borderBottom: active ? "2px solid #818cf8" : "2px solid transparent",
-    color: active ? "#e2e8f0" : "#64748b",
-    cursor: "pointer",
-    fontSize: "0.85rem",
-    whiteSpace: "nowrap",
-  }),
-  content: { flex: 1, overflowY: "auto" as const, padding: "1.5rem" },
+const T = {
+  bgBase:      "#0e0f13",
+  bgSurface:   "#16181d",
+  bgElevated:  "#1c1f27",
+  bgHover:     "#20232b",
+  border:      "#23262e",
+  borderSubtle:"#1c1f24",
+
+  accent:      "#6366f1",
+  accentDim:   "#3730a3",
+  accentGlow:  "rgba(99,102,241,0.12)",
+  accentText:  "#818cf8",
+
+  textPrimary: "#e8eaf0",
+  textSecond:  "#8b8fa8",
+  textMuted:   "#4a4e62",
+
+  green:       "#22c55e",
+  greenDim:    "rgba(34,197,94,0.12)",
+  amber:       "#f59e0b",
+  amberDim:    "rgba(245,158,11,0.12)",
+  red:         "#ef4444",
+  redDim:      "rgba(239,68,68,0.12)",
+
+  fontSans:    '"IBM Plex Sans", system-ui, -apple-system, sans-serif',
+  fontMono:    '"IBM Plex Mono", "Fira Code", monospace',
+  radiusSm:    "6px",
+  radiusMd:    "10px",
+  radiusLg:    "14px",
+  sidebarW:    "236px",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Shared style builders
+// ---------------------------------------------------------------------------
+
+const base: Record<string, React.CSSProperties> = {
   card: {
-    background: "#1a1d2e",
-    border: "1px solid #2d3150",
-    borderRadius: "0.5rem",
-    padding: "1.25rem",
-    maxWidth: 640,
-    marginBottom: "1rem",
+    background: T.bgSurface,
+    border: `1px solid ${T.border}`,
+    borderRadius: T.radiusMd,
+    padding: "20px 24px",
+    maxWidth: 680,
+    marginBottom: 16,
   },
-  h2: { fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem", color: "#c7d2fe" },
-  label: { display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.25rem" },
+  cardWide: {
+    background: T.bgSurface,
+    border: `1px solid ${T.border}`,
+    borderRadius: T.radiusMd,
+    padding: "20px 24px",
+    marginBottom: 16,
+  },
+  label: {
+    display: "block",
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase" as const,
+    color: T.textSecond,
+    marginBottom: 6,
+    marginTop: 14,
+  },
   input: {
+    display: "block",
     width: "100%",
-    padding: "0.5rem 0.75rem",
-    background: "#0f1117",
-    border: "1px solid #2d3150",
-    borderRadius: "0.375rem",
-    color: "#e2e8f0",
-    fontSize: "0.875rem",
-    marginBottom: "0.75rem",
+    padding: "8px 12px",
+    background: T.bgBase,
+    border: `1px solid ${T.border}`,
+    borderRadius: T.radiusSm,
+    color: T.textPrimary,
+    fontSize: 13,
+    fontFamily: T.fontSans,
+    outline: "none",
+    transition: "border-color 0.15s",
+  },
+  textarea: {
+    display: "block",
+    width: "100%",
+    padding: "8px 12px",
+    background: T.bgBase,
+    border: `1px solid ${T.border}`,
+    borderRadius: T.radiusSm,
+    color: T.textPrimary,
+    fontSize: 12,
+    fontFamily: T.fontMono,
+    outline: "none",
+    resize: "vertical" as const,
+    transition: "border-color 0.15s",
   },
   btn: {
-    padding: "0.5rem 1.25rem",
-    background: "#4f46e5",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "7px 16px",
+    background: T.accent,
     color: "#fff",
     border: "none",
-    borderRadius: "0.375rem",
+    borderRadius: T.radiusSm,
     cursor: "pointer",
-    fontSize: "0.875rem",
+    fontSize: 12,
     fontWeight: 600,
+    fontFamily: T.fontSans,
+    letterSpacing: "0.02em",
+    transition: "opacity 0.15s",
+    whiteSpace: "nowrap" as const,
+  },
+  btnGhost: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "7px 16px",
+    background: T.bgElevated,
+    color: T.textPrimary,
+    border: `1px solid ${T.border}`,
+    borderRadius: T.radiusSm,
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 500,
+    fontFamily: T.fontSans,
+    transition: "background 0.15s",
+    whiteSpace: "nowrap" as const,
   },
   btnDanger: {
-    padding: "0.5rem 1.25rem",
-    background: "#dc2626",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "7px 16px",
+    background: T.red,
     color: "#fff",
     border: "none",
-    borderRadius: "0.375rem",
+    borderRadius: T.radiusSm,
     cursor: "pointer",
-    fontSize: "0.875rem",
+    fontSize: 12,
     fontWeight: 600,
+    fontFamily: T.fontSans,
+    letterSpacing: "0.02em",
+    transition: "opacity 0.15s",
+    whiteSpace: "nowrap" as const,
   },
   error: {
-    color: "#f87171",
-    fontSize: "0.8rem",
-    marginTop: "0.5rem",
-    background: "#2d1515",
-    padding: "0.5rem 0.75rem",
-    borderRadius: "0.375rem",
+    color: T.red,
+    fontSize: 12,
+    marginTop: 10,
+    background: T.redDim,
+    border: `1px solid rgba(239,68,68,0.25)`,
+    padding: "8px 12px",
+    borderRadius: T.radiusSm,
   },
   pre: {
-    background: "#0f1117",
-    border: "1px solid #2d3150",
-    borderRadius: "0.375rem",
-    padding: "0.75rem",
-    fontSize: "0.78rem",
-    color: "#94a3b8",
+    background: T.bgBase,
+    border: `1px solid ${T.border}`,
+    borderRadius: T.radiusSm,
+    padding: "12px 14px",
+    fontSize: 11,
+    fontFamily: T.fontMono,
+    color: T.textSecond,
     overflowX: "auto" as const,
     whiteSpace: "pre-wrap" as const,
+    lineHeight: 1.6,
+    marginTop: 12,
   },
-  table: { width: "100%", borderCollapse: "collapse" as const, fontSize: "0.8rem" },
-  th: {
-    textAlign: "left" as const,
-    padding: "0.4rem 0.6rem",
-    background: "#1e2235",
-    color: "#818cf8",
+  sectionTitle: {
+    fontSize: 13,
     fontWeight: 600,
-    borderBottom: "1px solid #2d3150",
+    color: T.textPrimary,
+    marginBottom: 16,
+    paddingBottom: 10,
+    borderBottom: `1px solid ${T.borderSubtle}`,
   },
-  td: { padding: "0.4rem 0.6rem", borderBottom: "1px solid #1e2235", verticalAlign: "top" as const },
+  viewDesc: {
+    fontSize: 12,
+    color: T.textSecond,
+    lineHeight: 1.6,
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  btnRow: {
+    display: "flex",
+    gap: 8,
+    marginTop: 16,
+  },
 };
 
 // ---------------------------------------------------------------------------
-// Status badge helper (SPEC §1.2)
+// Status badge (SPEC §1.2) — PASS=green / NEEDS_REVIEW=amber / BLOCKED=red
 // ---------------------------------------------------------------------------
 
-const STATUS_COLORS: Record<Status, string> = {
-  PASS: "#16a34a",          // green
-  NEEDS_REVIEW: "#d97706",  // amber
-  BLOCKED: "#dc2626",       // red
+const STATUS_CONFIG: Record<Status, { bg: string; dimBg: string; label: string }> = {
+  PASS:         { bg: "#22c55e", dimBg: "rgba(34,197,94,0.12)",    label: "PASS" },
+  NEEDS_REVIEW: { bg: "#f59e0b", dimBg: "rgba(245,158,11,0.12)",   label: "NEEDS REVIEW" },
+  BLOCKED:      { bg: "#ef4444", dimBg: "rgba(239,68,68,0.12)",    label: "BLOCKED" },
 };
 
-function StatusBadge({ status }: { status: Status }): ReactNode {
+function StatusBadge({ status, large }: { status: Status; large?: boolean }): ReactNode {
+  const cfg = STATUS_CONFIG[status];
   return (
     <span
       style={{
-        display: "inline-block",
-        padding: "0.25rem 0.75rem",
-        borderRadius: "9999px",
-        background: STATUS_COLORS[status],
-        color: "#fff",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: large ? "6px 16px" : "3px 10px",
+        borderRadius: 9999,
+        background: cfg.dimBg,
+        border: `1px solid ${cfg.bg}`,
+        color: cfg.bg,
         fontWeight: 700,
-        fontSize: "0.95rem",
-        letterSpacing: "0.05em",
+        fontSize: large ? 15 : 11,
+        letterSpacing: "0.06em",
+        fontFamily: T.fontSans,
       }}
     >
-      {status}
+      <span
+        style={{
+          width: large ? 8 : 6,
+          height: large ? 8 : 6,
+          borderRadius: "50%",
+          background: cfg.bg,
+          flexShrink: 0,
+        }}
+      />
+      {cfg.label}
     </span>
   );
 }
@@ -175,6 +279,59 @@ function errMsg(e: unknown): string {
   if (e instanceof Error) return e.message;
   return String(e);
 }
+
+// ---------------------------------------------------------------------------
+// Table primitives (sticky header, full-width)
+// ---------------------------------------------------------------------------
+
+function AuditTable({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <div
+      style={{
+        overflowX: "auto",
+        overflowY: "auto",
+        maxHeight: 440,
+        marginTop: 16,
+        borderRadius: T.radiusSm,
+        border: `1px solid ${T.border}`,
+      }}
+    >
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          fontSize: 12,
+          fontFamily: T.fontSans,
+        }}
+      >
+        {children}
+      </table>
+    </div>
+  );
+}
+
+const thStyle: React.CSSProperties = {
+  position: "sticky",
+  top: 0,
+  textAlign: "left",
+  padding: "8px 12px",
+  background: T.bgElevated,
+  color: T.accentText,
+  fontWeight: 600,
+  fontSize: 11,
+  letterSpacing: "0.05em",
+  textTransform: "uppercase",
+  borderBottom: `1px solid ${T.border}`,
+  whiteSpace: "nowrap",
+  zIndex: 1,
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: "7px 12px",
+  borderBottom: `1px solid ${T.borderSubtle}`,
+  color: T.textPrimary,
+  verticalAlign: "top",
+};
 
 // ---------------------------------------------------------------------------
 // View: ProjectCreate
@@ -213,25 +370,54 @@ function ProjectCreateView({
   }, [name, organisms, assay, minN, onProjectCreated]);
 
   return (
-    <div style={s.card}>
-      <h2 style={s.h2}>Create Project</h2>
-      <label style={s.label}>Project name</label>
-      <input style={s.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. adipose_cvd_2026" />
-      <label style={s.label}>Allowed organisms (comma-separated)</label>
-      <input style={s.input} value={organisms} onChange={(e) => setOrganisms(e.target.value)} />
-      <label style={s.label}>Required assay</label>
-      <input style={s.input} value={assay} onChange={(e) => setAssay(e.target.value)} />
-      <label style={s.label}>Min samples (min_n_total)</label>
-      <input style={s.input} type="number" value={minN} onChange={(e) => setMinN(e.target.value)} />
-      <button style={s.btn} onClick={submit} disabled={loading}>
-        {loading ? "Creating…" : "Create project"}
-      </button>
-      {err && <div style={s.error}>{err}</div>}
-      {result && (
-        <pre style={{ ...s.pre, marginTop: "0.75rem" }}>
-          {JSON.stringify(result, null, 2)}
-        </pre>
-      )}
+    <div style={base.card}>
+      <div style={base.sectionTitle}>New project</div>
+      <p style={base.viewDesc}>
+        Initialises a project directory and <code>config.yaml</code>. After creation
+        you will be taken to the Accessions view.
+      </p>
+
+      <label style={base.label}>Project name</label>
+      <input
+        style={base.input}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="e.g. adipose_cvd_2026"
+        onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
+      />
+
+      <label style={base.label}>Allowed organisms <span style={{ color: T.textMuted, fontWeight: 400, textTransform: "none" as const }}>(comma-separated)</span></label>
+      <input
+        style={base.input}
+        value={organisms}
+        onChange={(e) => setOrganisms(e.target.value)}
+        placeholder="Homo sapiens, Mus musculus"
+      />
+
+      <label style={base.label}>Required assay</label>
+      <input
+        style={base.input}
+        value={assay}
+        onChange={(e) => setAssay(e.target.value)}
+        placeholder="bulk_transcriptomics"
+      />
+
+      <label style={base.label}>Min samples <span style={{ color: T.textMuted, fontWeight: 400, textTransform: "none" as const }}>(min_n_total)</span></label>
+      <input
+        style={base.input}
+        type="number"
+        value={minN}
+        onChange={(e) => setMinN(e.target.value)}
+      />
+
+      <div style={base.btnRow}>
+        <button style={base.btn} onClick={submit} disabled={loading}>
+          {loading ? "Creating…" : "Create project"}
+        </button>
+      </div>
+
+      {err && <div style={base.error}>{err}</div>}
+      {result && <pre style={base.pre}>{JSON.stringify(result, null, 2)}</pre>}
     </div>
   );
 }
@@ -275,26 +461,38 @@ function AccessionEntryView({ projectId }: { projectId: string }): ReactNode {
   }, [projectId]);
 
   return (
-    <div style={s.card}>
-      <h2 style={s.h2}>Add Accessions</h2>
-      {!projectId && <div style={s.error}>No project selected — create one first.</div>}
-      <label style={s.label}>Accession IDs (space / comma / newline separated)</label>
+    <div style={base.card}>
+      <div style={base.sectionTitle}>Add accessions</div>
+      {!projectId && (
+        <div style={{ ...base.error, marginBottom: 16 }}>No project selected — create one first.</div>
+      )}
+      <p style={base.viewDesc}>
+        Paste GEO / SRA / PRIDE accession IDs separated by spaces, commas, or newlines.
+      </p>
+
+      <label style={base.label}>Accession IDs</label>
       <textarea
-        style={{ ...s.input, height: 80, resize: "vertical", fontFamily: "monospace" }}
+        style={{ ...base.textarea, minHeight: 96 }}
         value={raw}
         onChange={(e) => setRaw(e.target.value)}
         placeholder={"GSE123456\nGSE234567\nPXD001234"}
       />
-      <div style={{ display: "flex", gap: "0.5rem" }}>
-        <button style={s.btn} onClick={submit} disabled={loading || !projectId}>
+
+      <div style={base.btnRow}>
+        <button style={base.btn} onClick={submit} disabled={loading || !projectId}>
           {loading ? "Adding…" : "Add accessions"}
         </button>
-        <button style={{ ...s.btn, background: "#0e7490" }} onClick={fetchMeta} disabled={loading || !projectId}>
+        <button
+          style={{ ...base.btnGhost, color: "#22d3ee" }}
+          onClick={fetchMeta}
+          disabled={loading || !projectId}
+        >
           {loading ? "Fetching…" : "Fetch metadata"}
         </button>
       </div>
-      {err && <div style={s.error}>{err}</div>}
-      {result && <pre style={{ ...s.pre, marginTop: "0.75rem" }}>{result}</pre>}
+
+      {err && <div style={base.error}>{err}</div>}
+      {result && <pre style={base.pre}>{result}</pre>}
     </div>
   );
 }
@@ -321,37 +519,46 @@ function ModalityDetectView({ projectId }: { projectId: string }): ReactNode {
   }, [projectId]);
 
   return (
-    <div style={s.card}>
-      <h2 style={s.h2}>Modality Detection</h2>
-      <p style={{ color: "#64748b", fontSize: "0.8rem", marginBottom: "0.75rem" }}>
+    <div style={base.card}>
+      <div style={base.sectionTitle}>Modality detection</div>
+      <p style={base.viewDesc}>
         Detection is structural (namespace regex) — never prose-based. Uncertain
         accessions are quarantined, never guessed (SPEC §4).
       </p>
-      <button style={s.btn} onClick={run} disabled={loading || !projectId}>
-        {loading ? "Detecting…" : "Detect modalities"}
-      </button>
-      {err && <div style={s.error}>{err}</div>}
+
+      <div style={base.btnRow}>
+        <button style={base.btn} onClick={run} disabled={loading || !projectId}>
+          {loading ? "Detecting…" : "Detect modalities"}
+        </button>
+      </div>
+
+      {err && <div style={base.error}>{err}</div>}
+
       {rows.length > 0 && (
-        <table style={{ ...s.table, marginTop: "0.75rem" }}>
+        <AuditTable>
           <thead>
             <tr>
-              <th style={s.th}>Accession</th>
-              <th style={s.th}>Modality</th>
-              <th style={s.th}>Confidence</th>
+              <th style={thStyle}>Accession</th>
+              <th style={thStyle}>Modality</th>
+              <th style={thStyle}>Confidence</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.accession}>
-                <td style={s.td}><code>{r.accession}</code></td>
-                <td style={s.td}>{r.modality}</td>
-                <td style={{ ...s.td, color: r.modality === "unknown" ? "#f87171" : "#4ade80" }}>
+                <td style={tdStyle}><code>{r.accession}</code></td>
+                <td style={tdStyle}>{r.modality}</td>
+                <td style={{
+                  ...tdStyle,
+                  color: r.modality === "unknown" ? T.red : T.green,
+                  fontWeight: 600,
+                }}>
                   {r.confidence}
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </AuditTable>
       )}
     </div>
   );
@@ -378,52 +585,99 @@ function DatasetAuditView({ projectId }: { projectId: string }): ReactNode {
     }
   }, [projectId]);
 
+  const included = rows.filter((r) => r.decision === "INCLUDE").length;
+  const rejected = rows.filter((r) => r.decision === "REJECT").length;
+
   return (
-    <div style={{ ...s.card, maxWidth: "100%" }}>
-      <h2 style={s.h2}>Dataset Audit</h2>
-      <p style={{ color: "#64748b", fontSize: "0.8rem", marginBottom: "0.75rem" }}>
+    <div style={base.cardWide}>
+      <div style={base.sectionTitle}>Dataset audit</div>
+      <p style={base.viewDesc}>
         Programmatic gates decide INCLUDE / REJECT. Every REJECT names the trigger
         field + value. Human approval is required before downstream analysis (SPEC §1, §6).
       </p>
-      <button style={s.btn} onClick={run} disabled={loading || !projectId}>
-        {loading ? "Running audit…" : "Run dataset audit"}
-      </button>
-      {err && <div style={s.error}>{err}</div>}
+
+      <div style={base.btnRow}>
+        <button style={base.btn} onClick={run} disabled={loading || !projectId}>
+          {loading ? "Running audit…" : "Run dataset audit"}
+        </button>
+      </div>
+
+      {err && <div style={base.error}>{err}</div>}
+
       {rows.length > 0 && (
-        <div style={{ overflowX: "auto", marginTop: "0.75rem" }}>
-          <table style={s.table}>
+        <>
+          {/* Summary strip */}
+          <div style={{
+            display: "flex",
+            gap: 12,
+            marginTop: 16,
+            padding: "10px 14px",
+            background: T.bgElevated,
+            borderRadius: T.radiusSm,
+            border: `1px solid ${T.border}`,
+          }}>
+            <StatChip label="Total" value={rows.length} />
+            <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
+            <StatChip label="Included" value={included} color={T.green} />
+            <StatChip label="Rejected" value={rejected} color={T.red} />
+          </div>
+
+          <AuditTable>
             <thead>
               <tr>
                 {["Accession", "Organism", "GPL", "Assay", "N total", "Tissue", "Decision", "Trigger"].map((h) => (
-                  <th key={h} style={s.th}>{h}</th>
+                  <th key={h} style={thStyle}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.accession}>
-                  <td style={s.td}><code>{r.accession}</code></td>
-                  <td style={s.td}>{r.organism_verbatim}</td>
-                  <td style={s.td}>{r.platform_gpl ?? "—"}</td>
-                  <td style={s.td}>{r.assay_detected ?? "—"}</td>
-                  <td style={s.td}>{r.n_total ?? "—"}</td>
-                  <td style={s.td}>{r.tissue ?? "—"}</td>
-                  <td style={{
-                    ...s.td,
-                    fontWeight: 700,
-                    color: r.decision === "INCLUDE" ? "#4ade80" : "#f87171",
-                  }}>
-                    {r.decision}
+                  <td style={tdStyle}><code>{r.accession}</code></td>
+                  <td style={{ ...tdStyle, color: T.textSecond }}>{r.organism_verbatim}</td>
+                  <td style={{ ...tdStyle, color: T.textSecond }}>{r.platform_gpl ?? "—"}</td>
+                  <td style={{ ...tdStyle, color: T.textSecond }}>{r.assay_detected ?? "—"}</td>
+                  <td style={{ ...tdStyle, color: T.textSecond }}>{r.n_total ?? "—"}</td>
+                  <td style={{ ...tdStyle, color: T.textSecond }}>{r.tissue ?? "—"}</td>
+                  <td style={{ ...tdStyle }}>
+                    <span style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "2px 9px",
+                      borderRadius: 9999,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.05em",
+                      background: r.decision === "INCLUDE" ? T.greenDim : T.redDim,
+                      color: r.decision === "INCLUDE" ? T.green : T.red,
+                      border: `1px solid ${r.decision === "INCLUDE" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                    }}>
+                      {r.decision}
+                    </span>
                   </td>
-                  <td style={s.td}>
+                  <td style={{ ...tdStyle, color: T.textSecond, fontFamily: T.fontMono, fontSize: 11 }}>
                     {r.trigger_field ? `${r.trigger_field}=${r.trigger_value}` : "—"}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </AuditTable>
+        </>
       )}
+    </div>
+  );
+}
+
+function StatChip({ label, value, color }: { label: string; value: number; color?: string }): ReactNode {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: T.textMuted }}>
+        {label}
+      </span>
+      <span style={{ fontSize: 16, fontWeight: 700, color: color ?? T.textPrimary, lineHeight: 1 }}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -461,58 +715,84 @@ function ApprovalView({ projectId }: { projectId: string }): ReactNode {
   }, [projectId, approves, approver, decision, note]);
 
   return (
-    <div style={s.card}>
-      <h2 style={s.h2}>Human Approval</h2>
+    <div style={base.card}>
+      <div style={base.sectionTitle}>Human approval</div>
+
       {/*
         IMPORTANT: This is a HUMAN sign-off. The application NEVER auto-approves.
         Downstream pipeline stages (raw fetch, all QC) are gated on the presence
         of the dataset_audit_approved.json artifact (SPEC §7, stage 3).
       */}
       <div style={{
-        background: "#1e1a08",
-        border: "1px solid #78350f",
-        borderRadius: "0.375rem",
-        padding: "0.6rem 0.75rem",
-        fontSize: "0.8rem",
-        color: "#fbbf24",
-        marginBottom: "0.75rem",
+        display: "flex",
+        gap: 12,
+        padding: "12px 14px",
+        background: "rgba(245,158,11,0.08)",
+        border: "1px solid rgba(245,158,11,0.35)",
+        borderRadius: T.radiusSm,
+        marginBottom: 16,
       }}>
-        This action records a HUMAN sign-off. The app never auto-approves.
-        Downstream pipeline stages will not run until this artifact exists.
+        <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1.4 }}>⚠</span>
+        <div style={{ fontSize: 12, color: T.amber, lineHeight: 1.6 }}>
+          <strong style={{ color: T.amber }}>Human sign-off required.</strong>
+          {" "}This application <strong>never auto-approves</strong>. Downstream
+          pipeline stages will not execute until this approval artifact is present
+          on disk (SPEC §7, stage 3).
+        </div>
       </div>
-      <label style={s.label}>Artifact being approved</label>
-      <input style={s.input} value={approves} onChange={(e) => setApproves(e.target.value)} />
-      <label style={s.label}>Approver name / ID</label>
-      <input style={s.input} value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name or ORCID" />
-      <label style={s.label}>Decision</label>
+
+      <label style={base.label}>Artifact being approved</label>
+      <input
+        style={base.input}
+        value={approves}
+        onChange={(e) => setApproves(e.target.value)}
+      />
+
+      <label style={base.label}>Approver name / ORCID</label>
+      <input
+        style={base.input}
+        value={approver}
+        onChange={(e) => setApprover(e.target.value)}
+        placeholder="Your name or ORCID iD"
+      />
+
+      <label style={base.label}>Decision</label>
       <select
-        style={{ ...s.input, cursor: "pointer" }}
+        style={{
+          ...base.input,
+          cursor: "pointer",
+          appearance: "none" as const,
+          paddingRight: 32,
+          color: decision === "APPROVED" ? T.green : T.red,
+          fontWeight: 700,
+        }}
         value={decision}
         onChange={(e) => setDecision(e.target.value as "APPROVED" | "REJECTED")}
       >
         <option value="APPROVED">APPROVED</option>
         <option value="REJECTED">REJECTED</option>
       </select>
-      <label style={s.label}>Note (optional)</label>
+
+      <label style={base.label}>Note <span style={{ color: T.textMuted, fontWeight: 400, textTransform: "none" as const }}>(optional)</span></label>
       <textarea
-        style={{ ...s.input, height: 60, resize: "vertical" }}
+        style={{ ...base.textarea, minHeight: 72 }}
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Reason, caveats, references…"
       />
-      <button
-        style={decision === "APPROVED" ? s.btn : s.btnDanger}
-        onClick={submit}
-        disabled={loading || !projectId}
-      >
-        {loading ? "Submitting…" : `Submit ${decision}`}
-      </button>
-      {err && <div style={s.error}>{err}</div>}
-      {result && (
-        <pre style={{ ...s.pre, marginTop: "0.75rem" }}>
-          {JSON.stringify(result, null, 2)}
-        </pre>
-      )}
+
+      <div style={base.btnRow}>
+        <button
+          style={decision === "APPROVED" ? base.btn : base.btnDanger}
+          onClick={submit}
+          disabled={loading || !projectId}
+        >
+          {loading ? "Submitting…" : `Submit ${decision}`}
+        </button>
+      </div>
+
+      {err && <div style={base.error}>{err}</div>}
+      {result && <pre style={base.pre}>{JSON.stringify(result, null, 2)}</pre>}
     </div>
   );
 }
@@ -520,55 +800,6 @@ function ApprovalView({ projectId }: { projectId: string }): ReactNode {
 // ---------------------------------------------------------------------------
 // View: RunStatus
 // ---------------------------------------------------------------------------
-
-function RunStatusView({ projectId }: { projectId: string }): ReactNode {
-  const [rs, setRs] = useState<RunStatus | null>(null);
-  const [err, setErr] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const refresh = useCallback(async () => {
-    if (!projectId) { setErr("Select or create a project first."); return; }
-    setLoading(true); setErr("");
-    try {
-      setRs(await getRunStatus(projectId));
-    } catch (e) {
-      setErr(errMsg(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  return (
-    <div style={s.card}>
-      <h2 style={s.h2}>Run Status</h2>
-      <button style={s.btn} onClick={refresh} disabled={loading || !projectId}>
-        {loading ? "Refreshing…" : "Refresh status"}
-      </button>
-      {err && <div style={s.error}>{err}</div>}
-      {rs && (
-        <div style={{ marginTop: "1rem" }}>
-          {/* Status is rendered prominently with green / amber / red (SPEC §1.2) */}
-          <div style={{ marginBottom: "0.75rem" }}>
-            <StatusBadge status={rs.status} />
-          </div>
-          <div style={{ color: "#94a3b8", fontSize: "0.8rem", marginBottom: "0.5rem" }}>
-            Stage: <strong style={{ color: "#e2e8f0" }}>{rs.stage}</strong>
-            &nbsp;&nbsp;Passed: <strong style={{ color: "#4ade80" }}>{rs.checks_passed}</strong>
-            &nbsp;&nbsp;Failed: <strong style={{ color: "#f87171" }}>{rs.checks_failed}</strong>
-          </div>
-          {rs.details.length > 0 && (
-            <ul style={{ paddingLeft: "1.25rem", fontSize: "0.8rem", color: "#94a3b8" }}>
-              {rs.details.map((d, i) => <li key={i}>{d}</li>)}
-            </ul>
-          )}
-          <div style={{ color: "#475569", fontSize: "0.75rem", marginTop: "0.5rem" }}>
-            {rs.created_utc}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // View: QcDashboard
@@ -592,130 +823,138 @@ function QcDashboardView({ projectId }: { projectId: string }): ReactNode {
   }, [projectId]);
 
   return (
-    <div style={s.card}>
-      <h2 style={s.h2}>QC Dashboard</h2>
-      <button style={s.btn} onClick={refresh} disabled={loading || !projectId}>
-        {loading ? "Loading…" : "Load QC dashboard"}
-      </button>
-      {err && <div style={s.error}>{err}</div>}
+    <div style={base.card}>
+      <div style={base.sectionTitle}>QC dashboard</div>
+      <p style={base.viewDesc}>
+        Aggregated audit summaries across all pipeline stages.
+      </p>
+
+      <div style={base.btnRow}>
+        <button style={base.btn} onClick={refresh} disabled={loading || !projectId}>
+          {loading ? "Loading…" : "Load QC dashboard"}
+        </button>
+      </div>
+
+      {err && <div style={base.error}>{err}</div>}
+
       {dash && (
-        <div style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>
-          <Section title="Dataset audit">
-            <Kv label="Total" value={dash.dataset_audit_summary.total} />
-            <Kv label="Included" value={dash.dataset_audit_summary.included} color="#4ade80" />
-            <Kv label="Rejected" value={dash.dataset_audit_summary.rejected} color="#f87171" />
-            <Kv label="Quarantined" value={dash.dataset_audit_summary.quarantined} color="#fbbf24" />
-          </Section>
+        <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+          <QcSection title="Dataset audit">
+            <QcGrid>
+              <QcStat label="Total"       value={dash.dataset_audit_summary.total} />
+              <QcStat label="Included"    value={dash.dataset_audit_summary.included}    color={T.green} />
+              <QcStat label="Rejected"    value={dash.dataset_audit_summary.rejected}    color={T.red} />
+              <QcStat label="Quarantined" value={dash.dataset_audit_summary.quarantined} color={T.amber} />
+            </QcGrid>
+          </QcSection>
+
           {dash.sample_qc_summary && (
-            <Section title="Sample QC">
-              <Kv label="Total" value={dash.sample_qc_summary.total} />
-              <Kv label="Passed" value={dash.sample_qc_summary.passed} color="#4ade80" />
-              <Kv label="Failed" value={dash.sample_qc_summary.failed} color="#f87171" />
-            </Section>
+            <QcSection title="Sample QC">
+              <QcGrid>
+                <QcStat label="Total"  value={dash.sample_qc_summary.total} />
+                <QcStat label="Passed" value={dash.sample_qc_summary.passed} color={T.green} />
+                <QcStat label="Failed" value={dash.sample_qc_summary.failed} color={T.red} />
+              </QcGrid>
+            </QcSection>
           )}
+
           {dash.outlier_summary && (
-            <Section title="Outliers">
-              <Kv label="Total flagged" value={dash.outlier_summary.total} />
-              <Kv label="Candidate only" value={dash.outlier_summary.candidate_only} />
-              <Kv label="Approved exclusions" value={dash.outlier_summary.approved_exclusions} color="#f87171" />
-            </Section>
+            <QcSection title="Outliers">
+              <QcGrid>
+                <QcStat label="Total flagged"       value={dash.outlier_summary.total} />
+                <QcStat label="Candidate only"      value={dash.outlier_summary.candidate_only} />
+                <QcStat label="Approved exclusions" value={dash.outlier_summary.approved_exclusions} color={T.red} />
+              </QcGrid>
+            </QcSection>
           )}
+
           {dash.missingness_summary && (
-            <Section title="Missing-value classes (SPEC §3)">
-              {(Object.entries(dash.missingness_summary.value_class_counts) as [string, number][]).map(
-                ([cls, count]) => <Kv key={cls} label={cls} value={count} />,
-              )}
-            </Section>
+            <QcSection title="Missing-value classes (SPEC §3)">
+              <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "4px 16px" }}>
+                {(Object.entries(dash.missingness_summary.value_class_counts) as [string, number][]).map(
+                  ([cls, count]) => (
+                    <div key={cls} style={{ display: "flex", gap: 8, fontSize: 12, padding: "3px 0" }}>
+                      <span style={{ color: T.textSecond, fontFamily: T.fontMono, fontSize: 11 }}>{cls}</span>
+                      <span style={{ color: T.textPrimary, fontWeight: 700 }}>{count}</span>
+                    </div>
+                  ),
+                )}
+              </div>
+            </QcSection>
           )}
-          <Section title="Modalities detected">
-            {(Object.entries(dash.modality_summary) as [string, number][]).map(
-              ([mod, count]) => <Kv key={mod} label={mod} value={count} />,
-            )}
-          </Section>
+
+          <QcSection title="Modalities detected">
+            <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "4px 16px" }}>
+              {(Object.entries(dash.modality_summary) as [string, number][]).map(
+                ([mod, count]) => (
+                  <div key={mod} style={{ display: "flex", gap: 8, fontSize: 12, padding: "3px 0" }}>
+                    <span style={{ color: T.textSecond, fontFamily: T.fontMono, fontSize: 11 }}>{mod}</span>
+                    <span style={{ color: T.accentText, fontWeight: 700 }}>{count}</span>
+                  </div>
+                ),
+              )}
+            </div>
+          </QcSection>
         </div>
       )}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }): ReactNode {
-  return (
-    <div style={{ marginBottom: "0.75rem" }}>
-      <div style={{ color: "#818cf8", fontWeight: 600, marginBottom: "0.25rem", fontSize: "0.8rem" }}>
-        {title}
-      </div>
-      <div style={{ paddingLeft: "0.75rem" }}>{children}</div>
-    </div>
-  );
-}
-
-function Kv({ label, value, color }: { label: string; value: number; color?: string }): ReactNode {
-  return (
-    <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.2rem" }}>
-      <span style={{ color: "#64748b", minWidth: 200 }}>{label}</span>
-      <span style={{ color: color ?? "#e2e8f0", fontWeight: 600 }}>{value}</span>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Project selector bar
-// ---------------------------------------------------------------------------
-
-function ProjectBar({
-  project,
-  onLoad,
-}: {
-  project: Project | null;
-  onLoad: (p: Project) => void;
-}): ReactNode {
-  const [id, setId] = useState("");
-  const [err, setErr] = useState("");
-
-  const load = useCallback(async () => {
-    if (!id.trim()) return;
-    try {
-      onLoad(await getProject(id.trim()));
-      setErr("");
-    } catch (e) {
-      setErr(errMsg(e));
-    }
-  }, [id, onLoad]);
-
+function QcSection({ title, children }: { title: string; children: ReactNode }): ReactNode {
   return (
     <div style={{
-      background: "#12152a",
-      borderBottom: "1px solid #2d3150",
-      padding: "0.5rem 1.5rem",
-      display: "flex",
-      alignItems: "center",
-      gap: "0.75rem",
-      fontSize: "0.82rem",
-      flexShrink: 0,
+      background: T.bgElevated,
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusSm,
+      overflow: "hidden",
     }}>
-      <span style={{ color: "#64748b" }}>Project:</span>
-      {project ? (
-        <span style={{ color: "#818cf8", fontWeight: 600 }}>
-          {project.name} <span style={{ color: "#475569" }}>({project.id})</span>
-        </span>
-      ) : (
-        <span style={{ color: "#475569" }}>none selected</span>
-      )}
-      <input
-        style={{ ...s.input, marginBottom: 0, width: 220 }}
-        value={id}
-        onChange={(e) => setId(e.target.value)}
-        placeholder="Load by project ID…"
-        onKeyDown={(e) => { if (e.key === "Enter") void load(); }}
-      />
-      <button style={{ ...s.btn, padding: "0.3rem 0.75rem" }} onClick={load}>Load</button>
-      {err && <span style={{ color: "#f87171" }}>{err}</span>}
+      <div style={{
+        padding: "8px 14px",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase" as const,
+        color: T.accentText,
+        borderBottom: `1px solid ${T.border}`,
+        background: T.bgSurface,
+      }}>
+        {title}
+      </div>
+      <div style={{ padding: "12px 14px" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function QcGrid({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 12 }}>
+      {children}
+    </div>
+  );
+}
+
+function QcStat({ label, value, color }: { label: string; value: number; color?: string }): ReactNode {
+  return (
+    <div style={{
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: 3,
+      padding: "8px 10px",
+      background: T.bgBase,
+      borderRadius: T.radiusSm,
+      border: `1px solid ${T.borderSubtle}`,
+    }}>
+      <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 22, fontWeight: 700, color: color ?? T.textPrimary, lineHeight: 1 }}>{value}</span>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Root App
+// Sidebar nav definition
 // ---------------------------------------------------------------------------
 
 type Tab =
@@ -727,19 +966,302 @@ type Tab =
   | "status"
   | "qc";
 
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "create", label: "Create project" },
-  { id: "accessions", label: "Accessions" },
-  { id: "modality", label: "Modality" },
-  { id: "audit", label: "Dataset audit" },
-  { id: "approval", label: "Approval" },
-  { id: "status", label: "Run status" },
-  { id: "qc", label: "QC dashboard" },
+interface NavItem {
+  id: Tab;
+  label: string;
+  icon: string;
+  hint: string;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: "create",    label: "Create project",  icon: "⊕",  hint: "Initialise a new project" },
+  { id: "accessions",label: "Accessions",      icon: "≡",  hint: "Add GEO / SRA / PRIDE IDs" },
+  { id: "modality",  label: "Modality",         icon: "◈",  hint: "Structural modality detection" },
+  { id: "audit",     label: "Dataset audit",   icon: "⊞",  hint: "INCLUDE / REJECT table" },
+  { id: "approval",  label: "Approval",         icon: "✦",  hint: "Human sign-off" },
+  { id: "status",    label: "Run status",       icon: "◉",  hint: "PASS / NEEDS_REVIEW / BLOCKED" },
+  { id: "qc",        label: "QC dashboard",    icon: "⊠",  hint: "Aggregated QC summaries" },
 ];
+
+const VIEW_TITLES: Record<Tab, string> = {
+  create:     "Create project",
+  accessions: "Accessions",
+  modality:   "Modality detection",
+  audit:      "Dataset audit",
+  approval:   "Human approval",
+  status:     "Run status",
+  qc:         "QC dashboard",
+};
+
+// ---------------------------------------------------------------------------
+// Sidebar component
+// ---------------------------------------------------------------------------
+
+function Sidebar({
+  activeTab,
+  onTabChange,
+  project,
+  onLoadProject,
+}: {
+  activeTab: Tab;
+  onTabChange: (t: Tab) => void;
+  project: Project | null;
+  onLoadProject: (p: Project) => void;
+}): ReactNode {
+  const [loadId, setLoadId] = useState("");
+  const [loadErr, setLoadErr] = useState("");
+
+  const doLoad = useCallback(async () => {
+    if (!loadId.trim()) return;
+    try {
+      onLoadProject(await getProject(loadId.trim()));
+      setLoadErr("");
+      setLoadId("");
+    } catch (e) {
+      setLoadErr(errMsg(e));
+    }
+  }, [loadId, onLoadProject]);
+
+  return (
+    <aside
+      style={{
+        width: T.sidebarW,
+        flexShrink: 0,
+        background: T.bgSurface,
+        borderRight: `1px solid ${T.border}`,
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
+      {/* Logo / app name */}
+      <div style={{
+        padding: "18px 16px 14px",
+        borderBottom: `1px solid ${T.border}`,
+        flexShrink: 0,
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+        }}>
+          <div style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: `linear-gradient(135deg, ${T.accent} 0%, #8b5cf6 100%)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 14,
+            flexShrink: 0,
+          }}>
+            ◈
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: T.textPrimary, letterSpacing: "-0.01em" }}>
+              Omics Desktop
+            </div>
+            <div style={{ fontSize: 10, color: T.textMuted, letterSpacing: "0.03em" }}>
+              AI-assisted pipeline
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav items */}
+      <nav style={{ flex: 1, overflowY: "auto", padding: "8px 8px" }}>
+        {NAV_ITEMS.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onTabChange(item.id)}
+              title={item.hint}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                width: "100%",
+                padding: "8px 10px",
+                background: isActive ? T.accentGlow : "transparent",
+                border: isActive ? `1px solid rgba(99,102,241,0.25)` : "1px solid transparent",
+                borderRadius: T.radiusSm,
+                cursor: "pointer",
+                marginBottom: 2,
+                textAlign: "left" as const,
+                transition: "background 0.12s, border-color 0.12s",
+              }}
+            >
+              <span style={{
+                fontSize: 14,
+                lineHeight: 1,
+                color: isActive ? T.accentText : T.textMuted,
+                flexShrink: 0,
+                width: 18,
+                textAlign: "center" as const,
+              }}>
+                {item.icon}
+              </span>
+              <span style={{
+                fontSize: 12,
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? T.textPrimary : T.textSecond,
+                letterSpacing: isActive ? "-0.01em" : "normal",
+              }}>
+                {item.label}
+              </span>
+              {/* Approval: special indicator */}
+              {item.id === "approval" && (
+                <span style={{
+                  marginLeft: "auto",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.05em",
+                  color: T.amber,
+                  background: T.amberDim,
+                  border: "1px solid rgba(245,158,11,0.3)",
+                  padding: "1px 5px",
+                  borderRadius: 9999,
+                }}>
+                  HUMAN
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Project context at bottom */}
+      <div style={{
+        borderTop: `1px solid ${T.border}`,
+        padding: "12px 12px",
+        flexShrink: 0,
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: T.textMuted, marginBottom: 8 }}>
+          Active project
+        </div>
+        {project ? (
+          <div style={{
+            padding: "8px 10px",
+            background: T.bgElevated,
+            borderRadius: T.radiusSm,
+            border: `1px solid ${T.border}`,
+            marginBottom: 10,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: T.accentText, marginBottom: 2 }}>
+              {project.name}
+            </div>
+            <div style={{ fontSize: 10, fontFamily: T.fontMono, color: T.textMuted }}>
+              {project.id}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            padding: "8px 10px",
+            background: T.bgBase,
+            borderRadius: T.radiusSm,
+            border: `1px dashed ${T.border}`,
+            marginBottom: 10,
+            fontSize: 11,
+            color: T.textMuted,
+            textAlign: "center" as const,
+          }}>
+            None selected
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            style={{
+              ...base.input,
+              flex: 1,
+              fontSize: 11,
+              padding: "6px 8px",
+              fontFamily: T.fontMono,
+            }}
+            value={loadId}
+            onChange={(e) => setLoadId(e.target.value)}
+            placeholder="Project ID…"
+            onKeyDown={(e) => { if (e.key === "Enter") void doLoad(); }}
+          />
+          <button
+            style={{
+              ...base.btnGhost,
+              padding: "6px 10px",
+              fontSize: 11,
+            }}
+            onClick={doLoad}
+          >
+            Load
+          </button>
+        </div>
+        {loadErr && <div style={{ ...base.error, marginTop: 6, fontSize: 11 }}>{loadErr}</div>}
+      </div>
+    </aside>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Top bar
+// ---------------------------------------------------------------------------
+
+function TopBar({
+  title,
+  project,
+  runStatus,
+}: {
+  title: string;
+  project: Project | null;
+  runStatus: Status | null;
+}): ReactNode {
+  return (
+    <div style={{
+      height: 44,
+      borderBottom: `1px solid ${T.border}`,
+      display: "flex",
+      alignItems: "center",
+      padding: "0 24px",
+      gap: 14,
+      flexShrink: 0,
+      background: T.bgBase,
+    }}>
+      <h1 style={{
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.textPrimary,
+        letterSpacing: "-0.01em",
+      }}>
+        {title}
+      </h1>
+
+      {project && (
+        <>
+          <div style={{ width: 1, height: 16, background: T.border, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: T.textSecond }}>
+            <span style={{ color: T.textMuted }}>Project: </span>
+            <span style={{ color: T.accentText, fontWeight: 600 }}>{project.name}</span>
+          </span>
+        </>
+      )}
+
+      {runStatus && (
+        <div style={{ marginLeft: "auto" }}>
+          <StatusBadge status={runStatus} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Root App
+// ---------------------------------------------------------------------------
 
 export default function App(): ReactNode {
   const [tab, setTab] = useState<Tab>("create");
   const [project, setProject] = useState<Project | null>(null);
+  const [lastRunStatus, setLastRunStatus] = useState<Status | null>(null);
 
   const projectId = project?.id ?? "";
 
@@ -748,34 +1270,159 @@ export default function App(): ReactNode {
     setTab("accessions");
   }, []);
 
+  // Intercept RunStatus loads to keep the top bar pill in sync
+  const handleRunStatusLoad = useCallback((p: Project) => {
+    setProject(p);
+  }, []);
+
   return (
-    <div style={s.app}>
-      <header style={s.header}>
-        <span style={s.logo}>Omics Desktop</span>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            style={s.tabBtn(tab === t.id)}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </header>
+    <div style={{
+      display: "flex",
+      height: "100vh",
+      overflow: "hidden",
+      background: T.bgBase,
+      fontFamily: T.fontSans,
+    }}>
+      <Sidebar
+        activeTab={tab}
+        onTabChange={setTab}
+        project={project}
+        onLoadProject={handleRunStatusLoad}
+      />
 
-      <ProjectBar project={project} onLoad={setProject} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <TopBar
+          title={VIEW_TITLES[tab]}
+          project={project}
+          runStatus={lastRunStatus}
+        />
 
-      <main style={s.content}>
-        {tab === "create" && (
-          <ProjectCreateView onProjectCreated={handleProjectCreated} />
-        )}
-        {tab === "accessions" && <AccessionEntryView projectId={projectId} />}
-        {tab === "modality" && <ModalityDetectView projectId={projectId} />}
-        {tab === "audit" && <DatasetAuditView projectId={projectId} />}
-        {tab === "approval" && <ApprovalView projectId={projectId} />}
-        {tab === "status" && <RunStatusView projectId={projectId} />}
-        {tab === "qc" && <QcDashboardView projectId={projectId} />}
-      </main>
+        <main style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "24px 28px",
+        }}>
+          {tab === "create" && (
+            <ProjectCreateView onProjectCreated={handleProjectCreated} />
+          )}
+          {tab === "accessions" && <AccessionEntryView projectId={projectId} />}
+          {tab === "modality"   && <ModalityDetectView projectId={projectId} />}
+          {tab === "audit"      && <DatasetAuditView   projectId={projectId} />}
+          {tab === "approval"   && <ApprovalView        projectId={projectId} />}
+          {tab === "status"     && (
+            <RunStatusViewWithCallback
+              projectId={projectId}
+              onStatusLoad={setLastRunStatus}
+            />
+          )}
+          {tab === "qc"         && <QcDashboardView     projectId={projectId} />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RunStatusViewWithCallback — thin wrapper so the top bar pill updates
+// ---------------------------------------------------------------------------
+
+function RunStatusViewWithCallback({
+  projectId,
+  onStatusLoad,
+}: {
+  projectId: string;
+  onStatusLoad: (s: Status) => void;
+}): ReactNode {
+  const [rs, setRs] = useState<RunStatus | null>(null);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!projectId) { setErr("Select or create a project first."); return; }
+    setLoading(true); setErr("");
+    try {
+      const result = await getRunStatus(projectId);
+      setRs(result);
+      onStatusLoad(result.status);
+    } catch (e) {
+      setErr(errMsg(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, onStatusLoad]);
+
+  return (
+    <div style={base.card}>
+      <div style={base.sectionTitle}>Run status</div>
+      <p style={base.viewDesc}>
+        Pipeline gate checks — PASS (green), NEEDS_REVIEW (amber), BLOCKED (red).
+      </p>
+
+      <div style={base.btnRow}>
+        <button style={base.btn} onClick={refresh} disabled={loading || !projectId}>
+          {loading ? "Refreshing…" : "Refresh status"}
+        </button>
+      </div>
+
+      {err && <div style={base.error}>{err}</div>}
+
+      {rs && (
+        <div style={{ marginTop: 20 }}>
+          {/* Prominent status (SPEC §1.2) */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            padding: "16px 20px",
+            background: T.bgElevated,
+            border: `1px solid ${T.border}`,
+            borderRadius: T.radiusMd,
+            marginBottom: 16,
+          }}>
+            <StatusBadge status={rs.status} large />
+            <div style={{ fontSize: 12, color: T.textSecond }}>
+              Stage: <strong style={{ color: T.textPrimary }}>{rs.stage}</strong>
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 16 }}>
+              <div style={{ textAlign: "center" as const }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.green, lineHeight: 1 }}>{rs.checks_passed}</div>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: T.textMuted, marginTop: 3 }}>passed</div>
+              </div>
+              <div style={{ textAlign: "center" as const }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.red, lineHeight: 1 }}>{rs.checks_failed}</div>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: T.textMuted, marginTop: 3 }}>failed</div>
+              </div>
+            </div>
+          </div>
+
+          {rs.details.length > 0 && (
+            <div style={{
+              background: T.bgBase,
+              border: `1px solid ${T.border}`,
+              borderRadius: T.radiusSm,
+              padding: "10px 14px",
+            }}>
+              {rs.details.map((d, i) => (
+                <div key={i} style={{
+                  display: "flex",
+                  gap: 8,
+                  padding: "4px 0",
+                  fontSize: 12,
+                  color: T.textSecond,
+                  borderBottom: i < rs.details.length - 1 ? `1px solid ${T.borderSubtle}` : "none",
+                }}>
+                  <span style={{ color: T.textMuted, flexShrink: 0 }}>›</span>
+                  {d}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 10, fontFamily: T.fontMono }}>
+            {rs.created_utc}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

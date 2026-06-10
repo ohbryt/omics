@@ -22,6 +22,9 @@ results/metadata/
 results/de/
 results/integration/
 results/qc_plots/
+projects/
+apps/desktop/release/
+_app*.png
 
 # OS
 .DS_Store

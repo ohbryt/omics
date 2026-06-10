@@ -13,6 +13,10 @@ from __future__ import annotations
 
 import csv
 import json
+import re
+import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Optional
 
@@ -317,3 +321,251 @@ def create_approval(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(art.model_dump(), indent=2, ensure_ascii=False), encoding="utf-8")
     return out
+
+
+# --- multi-project workspace + app-facing helpers ------------------------------
+
+# Map common UI modality labels to a valid config required_assay (SPEC 5).
+_ASSAY_ALIASES = {
+    "bulk_transcriptomics": "rna-seq",
+    "rna-seq": "rna-seq",
+    "rnaseq": "rna-seq",
+    "single_cell": "scrna-seq",
+    "scrna-seq": "scrna-seq",
+    "microarray": "microarray",
+    "proteomics": "proteomics",
+    "proteomics_ms": "proteomics",
+    "metabolomics": "metabolomics",
+    "any": "any",
+}
+
+
+def normalize_assay(value: Optional[str]) -> str:
+    if not value:
+        return "any"
+    return _ASSAY_ALIASES.get(value.strip().lower(), "any")
+
+
+def slug_id(name: str) -> str:
+    """Stable, filesystem-safe project id from a name + short content hash."""
+    base = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-") or "project"
+    return f"{base[:32]}-{prov.sha256_text(name)[:6]}"
+
+
+def project_dir(workspace: str | Path, project_id: str) -> Path:
+    return Path(workspace) / "projects" / project_id
+
+
+def create_project_from_inputs(
+    name: str,
+    workspace: str | Path,
+    *,
+    allowed_organisms: Optional[list[str]] = None,
+    required_assay: Optional[str] = None,
+    min_n_total: Optional[int] = None,
+    seed: Optional[int] = None,
+) -> Project:
+    """Build a project under workspace/projects/<id> with a full, valid config.yaml
+    assembled from defaults + the given overrides (SPEC 5)."""
+    from .config_model import OmicsConfig, ProjectCfg  # local import to avoid cycle
+
+    pid = slug_id(name)
+    root = project_dir(workspace, pid)
+    proj_cfg = ProjectCfg(
+        id=pid,
+        name=name,
+        allowed_organisms=allowed_organisms or ["Homo sapiens", "Mus musculus"],
+        required_assay=normalize_assay(required_assay),
+        min_n_total=min_n_total if min_n_total is not None else 6,
+        seed=seed if seed is not None else 1234,
+    )
+    full = OmicsConfig(project=proj_cfg)  # all other sections take SPEC defaults
+    cfg_dict = full.model_dump(mode="json")
+    return create_project(pid, name, root, base_config=cfg_dict)
+
+
+def _acc_store(root: Path) -> Path:
+    return root / "accessions.json"
+
+
+def add_accessions(root: str | Path, accessions: list[str]) -> list[dict]:
+    """Persist accessions (dedup, order-preserving) and return classified entries."""
+    root = Path(root)
+    store = _acc_store(root)
+    existing = list_accessions(root)
+    seen = {a for a in existing}
+    merged = existing + [a for a in accessions if a not in seen and not seen.add(a)]
+    store.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+    out = []
+    for acc in merged:
+        repo, _mod, valid = classify_namespace(acc)
+        out.append({"id": acc, "repository": repo.value, "namespace_valid": valid})
+    return out
+
+
+def list_accessions(root: str | Path) -> list[str]:
+    store = _acc_store(Path(root))
+    if store.exists():
+        data = json.loads(store.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    return []
+
+
+# --- online metadata fetch (best-effort; falls back to offline namespace-only) --
+
+_EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
+
+
+def _http_get(url: str, timeout: float = 8.0) -> Optional[str]:
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "omics-desktop/0.1"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.read().decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001 - network is best-effort; caller falls back
+        return None
+
+
+def fetch_metadata_online(accession: str) -> Optional[dict[str, str]]:
+    """Best-effort structured-metadata fetch from NCBI E-utilities for GEO/SRA.
+
+    Returns a dict of structured fields, or None on any failure (caller falls back to
+    an offline namespace-only snapshot). Never raises.
+    """
+    repo, _mod, valid = classify_namespace(accession)
+    if not valid:
+        return None
+    try:
+        if repo.value == "GEO":
+            sj = _http_get(_EUTILS + "esearch.fcgi?db=gds&retmode=json&term="
+                           + urllib.parse.quote(f"{accession}[ACCN]"))
+            if not sj:
+                return None
+            ids = json.loads(sj).get("esearchresult", {}).get("idlist", [])
+            if not ids:
+                return None
+            time.sleep(0.34)
+            rj = _http_get(_EUTILS + "esummary.fcgi?db=gds&retmode=json&id=" + ids[0])
+            if not rj:
+                return None
+            rec = json.loads(rj).get("result", {}).get(ids[0], {})
+            n = rec.get("n_samples")
+            return {k: str(v) for k, v in {
+                "organism": rec.get("taxon", ""),
+                "gdstype": rec.get("gdstype", ""),
+                "platform_GPL": rec.get("gpl", ""),
+                "platform": rec.get("ptechtype", ""),
+                "title": rec.get("title", ""),
+                "n_total": n if n not in (None, "") else "",
+            }.items() if v not in (None, "")}
+        if repo.value == "SRA":
+            sj = _http_get(_EUTILS + "esearch.fcgi?db=sra&retmode=json&term="
+                           + urllib.parse.quote(accession))
+            if not sj:
+                return None
+            ids = json.loads(sj).get("esearchresult", {}).get("idlist", [])
+            if not ids:
+                return None
+            time.sleep(0.34)
+            xj = _http_get(_EUTILS + "esummary.fcgi?db=sra&retmode=json&id=" + ids[0])
+            if not xj:
+                return None
+            rec = json.loads(xj).get("result", {}).get(ids[0], {})
+            expxml = rec.get("expxml", "")
+            strat = ""
+            m = re.search(r'<LIBRARY_STRATEGY>([^<]+)</LIBRARY_STRATEGY>', expxml)
+            if m:
+                strat = m.group(1)
+            org = ""
+            mo = re.search(r'ScientificName="([^"]+)"', expxml)
+            if mo:
+                org = mo.group(1)
+            return {k: v for k, v in {
+                "organism": org,
+                "library_strategy": strat.lower(),
+            }.items() if v}
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def fetch_project_metadata(root: str | Path, *, online: bool = True) -> list[dict]:
+    """Fetch + store a snapshot for every stored accession. Returns client-shaped
+    MetadataSnapshot dicts (accession, fetched_utc, source_api, raw_fields, checksum)."""
+    root = Path(root)
+    out = []
+    for acc in list_accessions(root):
+        injected = fetch_metadata_online(acc) if online else None
+        source = "ncbi-eutils" if injected else "offline-namespace"
+        snap = fetch_metadata(acc, root, injected=injected, source_api=source)
+        out.append({
+            "accession": snap.accession,
+            "fetched_utc": snap.fetched_utc,
+            "source_api": snap.source_api,
+            "raw_fields": snap.fields,
+            "checksum": snap.checksum or "",
+        })
+    return out
+
+
+# --- QC dashboard aggregation --------------------------------------------------
+
+def build_qc_dashboard(root: str | Path, project_id: str) -> dict:
+    """Aggregate audit tables into the dashboard summary shape the UI expects."""
+    root = Path(root)
+    results = root / "results"
+
+    def rows(name: str) -> list[dict]:
+        p = results / name
+        if not p.exists():
+            return []
+        return list(csv.DictReader(p.read_text(encoding="utf-8").splitlines()))
+
+    audit = rows("dataset_audit.csv")
+    included = sum(1 for r in audit if r.get("decision", "").upper() == "INCLUDE")
+    rejected = sum(1 for r in audit if r.get("decision", "").upper() == "REJECT")
+    quar = rows("quarantine.csv")
+
+    modality_summary: dict[str, int] = {}
+    for r in rows("modality_detected.csv"):
+        m = r.get("detected_modality", "unknown") or "unknown"
+        modality_summary[m] = modality_summary.get(m, 0) + 1
+
+    sample_rows = rows("sample_qc_audit.csv")
+    sample_summary = None
+    if sample_rows:
+        sample_summary = {
+            "total": len(sample_rows),
+            "passed": sum(1 for r in sample_rows if r.get("decision", "").upper() == "PASS"),
+            "failed": sum(1 for r in sample_rows if r.get("decision", "").upper() in ("EXCLUDE", "FAIL")),
+        }
+
+    outlier_rows = rows("outlier_audit.csv")
+    outlier_summary = None
+    if outlier_rows:
+        outlier_summary = {
+            "total": len(outlier_rows),
+            "candidate_only": sum(1 for r in outlier_rows if str(r.get("candidate_only", "")).lower() == "true"),
+            "approved_exclusions": sum(1 for r in outlier_rows if str(r.get("approved", "")).lower() == "true"),
+        }
+
+    missing_rows = rows("missingness_audit.csv")
+    missingness_summary = None
+    if missing_rows:
+        counts: dict[str, int] = {}
+        for r in missing_rows:
+            vc = r.get("value_class", "")
+            if vc:
+                counts[vc] = counts.get(vc, 0) + 1
+        missingness_summary = {"value_class_counts": counts}
+
+    return {
+        "project_id": project_id,
+        "dataset_audit_summary": {
+            "total": len(audit), "included": included, "rejected": rejected,
+            "quarantined": len(quar),
+        },
+        "sample_qc_summary": sample_summary,
+        "outlier_summary": outlier_summary,
+        "missingness_summary": missingness_summary,
+        "modality_summary": modality_summary,
+    }

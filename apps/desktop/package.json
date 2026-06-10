@@ -32,6 +32,13 @@
     "appId": "ai.omics.desktop",
     "productName": "Omics Desktop",
     "files": ["dist/**", "dist-electron/**"],
-    "directories": { "output": "release" }
+    "extraResources": [
+      { "from": "../backend/dist/omics-backend", "to": "backend" }
+    ],
+    "directories": { "output": "release" },
+    "win": { "target": ["nsis"] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
+    "mac": { "target": ["dmg"] },
+    "linux": { "target": ["AppImage"] }
   }
 }

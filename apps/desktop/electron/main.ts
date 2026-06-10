@@ -29,25 +29,33 @@ const BACKEND_HOST = "127.0.0.1";
 let backend: ChildProcess | null = null;
 
 function startBackend(): void {
-  const py = process.env["OMICS_PYTHON"] || "python";
   const workspace =
     process.env["OMICS_WORKSPACE"] ||
     (VITE_DEV_SERVER_URL ? REPO_ROOT : path.join(app.getPath("userData"), "workspace"));
 
-  backend = spawn(
-    py,
-    ["-m", "uvicorn", "omics_backend.app:app", "--host", BACKEND_HOST, "--port", String(BACKEND_PORT)],
-    {
-      cwd: REPO_ROOT,
-      env: {
-        ...process.env,
-        PYTHONPATH: path.join(REPO_ROOT, "apps", "backend"),
-        OMICS_WORKSPACE: workspace,
-        PYTHONUTF8: "1",
-      },
-      stdio: "inherit",
-    },
-  );
+  const baseEnv = {
+    ...process.env,
+    OMICS_WORKSPACE: workspace,
+    OMICS_HOST: BACKEND_HOST,
+    OMICS_PORT: String(BACKEND_PORT),
+    PYTHONUTF8: "1",
+  };
+
+  if (VITE_DEV_SERVER_URL) {
+    // Dev: run the backend from source with the project's Python.
+    const py = process.env["OMICS_PYTHON"] || "python";
+    backend = spawn(
+      py,
+      ["-m", "uvicorn", "omics_backend.app:app", "--host", BACKEND_HOST, "--port", String(BACKEND_PORT)],
+      { cwd: REPO_ROOT, env: { ...baseEnv, PYTHONPATH: path.join(REPO_ROOT, "apps", "backend") }, stdio: "inherit" },
+    );
+  } else {
+    // Packaged: launch the bundled backend executable (PyInstaller), shipped as an
+    // extraResource under resources/backend/. No Python required on the host.
+    const exe = process.platform === "win32" ? "omics-backend.exe" : "omics-backend";
+    const backendExe = path.join(process.resourcesPath, "backend", exe);
+    backend = spawn(backendExe, [], { env: baseEnv, stdio: "inherit" });
+  }
 
   backend.on("exit", (code) => {
     // If the backend dies unexpectedly, surface it in the console; the renderer will

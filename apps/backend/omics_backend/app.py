@@ -177,8 +177,13 @@ def create_approval(project_id: str, body: CreateApprovalBody) -> dict:
 def run_status(project_id: str) -> dict:
     d = _dir(project_id)
     env = {**os.environ, "OMICS_ROOT": str(d), "PYTHONPATH": str(REPO_ROOT / "apps" / "backend")}
-    subprocess.run([sys.executable, str(VERIFY_PY)], cwd=str(d), capture_output=True,
-                   text=True, env=env)
+    if getattr(sys, "frozen", False):
+        # Packaged: re-invoke this executable in verify mode (no Python on the host).
+        env["OMICS_VERIFY"] = "1"
+        cmd = [sys.executable]
+    else:
+        cmd = [sys.executable, str(VERIFY_PY)]
+    subprocess.run(cmd, cwd=str(d), capture_output=True, text=True, env=env)
     sp = d / "results" / "run_status.json"
     if sp.exists():
         rs = json.loads(sp.read_text(encoding="utf-8"))

@@ -24,6 +24,8 @@ results/integration/
 results/qc_plots/
 projects/
 apps/desktop/release/
+apps/backend/build/
+apps/backend/dist/
 _app*.png
 
 # OS
